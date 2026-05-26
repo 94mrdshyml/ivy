@@ -1,11 +1,12 @@
 import { serve } from "inngest/node";
 import { inngest } from "./inngest/client";
 import { helloIvy } from "./inngest/functions/hello";
+import { instagramSync } from "./inngest/functions/instagram-sync";
 import { createServer } from "http";
 
 const handler = serve({
   client: inngest,
-  functions: [helloIvy],
+  functions: [helloIvy, instagramSync],
 });
 
 const port = process.env["PORT"] ?? "3001";

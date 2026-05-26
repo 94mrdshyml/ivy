@@ -173,3 +173,129 @@ Full platform foundation: Stripe-style ID generator, revised multi-tenant Prisma
 - **RLS migration:** `packages/db/supabase/migrations/001_rls.sql` is NOT a Prisma migration — it must be run manually against Supabase or via Supabase CLI (`supabase db push`). The `pnpm db:migrate` script runs `prisma migrate deploy` which won't apply this file.
 - **`exactOptionalPropertyTypes: true`:** The tsconfig has this flag. All Prisma `where` clauses must use defined values — never pass `undefined` where a defined string is expected. Guard with `if (dbUser)` before using `dbUser.id` in queries.
 - **playwright.config.ts `workers`:** Changed from `process.env.CI ? 1 : undefined` to `1` to satisfy `exactOptionalPropertyTypes`. This runs Playwright tests single-threaded always.
+
+---
+
+## Session 2b — Instagram Connect & Analytics
+
+**Date & Time (IST):** 2026-05-26 22:15 IST
+**Status:** Completed
+
+### What We Built
+
+Full Instagram integration: Meta OAuth flow, long-lived token exchange, Inngest hourly sync job
+(metrics + posts), and a complete analytics dashboard with 5 metric cards, 3 charts, and a
+sortable/paginated content performance table.
+
+### How We Built It
+
+**Prisma schema additions:** Three new models added to the existing schema — `InstagramAccount`
+(stores IG user ID, handle, access token), `InstagramMetric` (daily metrics with
+`@@unique([instagramAccountId, date])` for safe upserts), `InstagramPost` (per-post metrics
+including engagement rate). Added `instagramAccount InstagramAccount?` relation to `SocialAccount`
+and `instagramAccounts InstagramAccount[]` to `Organization`. New RLS migration in
+`002_instagram_rls.sql`.
+
+**ID prefixes:** Added `igacc`, `igmet`, `igpst` to `packages/db/src/ids.ts`.
+
+**Instagram OAuth (`/api/instagram/connect`):** Builds Meta dialog URL with four required
+permissions. Stores `orgId` in a short-lived httpOnly cookie (`ig_org_id`, maxAge 600s) before
+redirecting, so the callback knows which org to attach the account to.
+
+**Callback (`/api/instagram/callback`):** Short-lived token → long-lived token exchange via
+`fb_exchange_token` grant. Fetches the connected IG Business Account via `/me/accounts` (Pages
+API) → IG account fields. Upserts both `SocialAccount` and `InstagramAccount` records — handles
+reconnect case by updating existing records and clearing `deletedAt`. Triggers
+`instagram/sync.requested` Inngest event immediately after connect. Deletes the `ig_org_id` cookie.
+
+**Disconnect (`/api/instagram/disconnect`):** POST handler, soft-deletes both `SocialAccount` and
+`InstagramAccount` via `updateMany`. Does not revoke Meta token.
+
+**Inngest sync (`instagram-sync.ts`):** Dual trigger — `instagram/sync.requested` event (on
+connect) and `0 * * * *` cron (hourly). Registered alongside `helloIvy` in workers `index.ts`.
+Five steps per account: fetch account insights (30-day window), upsert `InstagramMetric` rows,
+fetch media list, fetch per-post insights, upsert `InstagramPost` rows. Each step wrapped in
+`step.run()` for independent retry. Writes an `AuditLog` entry after each account sync.
+Uses `db` from `@ivy/db` (Prisma client with soft-delete middleware).
+
+**Analytics dashboard (server component):** Reads `searchParams.range` (7/30/90, default 30).
+Checks `InstagramAccount` existence — renders empty state with gradient connect CTA if not found,
+full analytics if connected. Fetches current-period and previous-period `InstagramMetric` rows in
+parallel with `InstagramPost` rows using `Promise.all`. Computes deltas for trend arrows.
+
+**Chart components (client, Recharts):** `FollowerGrowthChart` — AreaChart with green gradient
+fill. `ReachImpressionsChart` — LineChart with green (reach) and violet (impressions) lines.
+`EngagementChart` — BarChart with aggregated likes/comments/shares/saves totals. All charts use
+consistent dark tooltip style and muted axis ticks.
+
+**Metric cards:** Five cards (Followers, Reach, Impressions, Profile Views, Accounts Engaged).
+Values formatted with K/M suffixes. Delta shows trend icon (up=green, down=red) vs previous period.
+Numbers in Geist Mono via `font-mono` class.
+
+**Content table (client component):** Sortable by any numeric column (reach, likes, comments,
+shares, saves, engagement rate). Default sort: reach desc. Paginated at 20 rows. Thumbnail via
+Next.js `Image`. Media type badge with per-type color. Caption truncated at 60 chars.
+
+**Connections page update:** Instagram now has a live Connect link (`/api/instagram/connect`) and
+a `DisconnectButton` client component (calls `/api/instagram/disconnect`, then `router.refresh()`).
+Facebook and YouTube show "Coming soon" disabled buttons.
+
+**`exactOptionalPropertyTypes` fix in workers:** Prisma nullable fields require `null` not
+`undefined` when using `exactOptionalPropertyTypes: true`. All optional fields in metric/post
+upserts now use `?? null`.
+
+### In Scope
+
+- `packages/db/prisma/schema.prisma` — InstagramAccount, InstagramMetric, InstagramPost models
+- `packages/db/supabase/migrations/002_instagram_rls.sql`
+- `packages/db/src/ids.ts` — igacc, igmet, igpst prefixes
+- `apps/web/app/api/instagram/connect/route.ts`
+- `apps/web/app/api/instagram/callback/route.ts`
+- `apps/web/app/api/instagram/disconnect/route.ts`
+- `apps/web/app/(app)/dashboard/analytics/instagram/page.tsx` (full rewrite)
+- `apps/web/app/(app)/dashboard/analytics/instagram/date-range-selector.tsx`
+- `apps/web/app/(app)/dashboard/analytics/instagram/metric-cards.tsx`
+- `apps/web/app/(app)/dashboard/analytics/instagram/charts.tsx`
+- `apps/web/app/(app)/dashboard/analytics/instagram/content-table.tsx`
+- `apps/web/app/(app)/dashboard/settings/connections/page.tsx` (wired buttons)
+- `apps/web/app/(app)/dashboard/settings/connections/disconnect-button.tsx`
+- `apps/workers/src/inngest/functions/instagram-sync.ts`
+- `apps/workers/src/index.ts` (registered instagramSync)
+- `apps/web/.env.example` (added META_APP_ID, META_APP_SECRET)
+
+### Out of Scope
+
+- Facebook and YouTube OAuth (future sessions)
+- Story insights (Meta API has 24h expiry restrictions on story metrics)
+- Token refresh flow (long-lived tokens last 60 days; refresh is a future session)
+- Inngest event key / signing key configuration for production
+
+### Breaking Changes
+
+- `SocialAccount` model now has optional `instagramAccount InstagramAccount?` relation.
+  Existing `SocialAccount` rows are unaffected (relation is optional).
+- Workers app now depends on `@ivy/db` — Prisma client runs in Node.js context.
+  Workers tsconfig uses `module: CommonJS` which is compatible.
+
+### Notes for Future Sessions
+
+- **Meta app setup required:** Before testing OAuth, developer must create a Meta Developer App,
+  add Instagram Graph API product, set redirect URI to
+  `{NEXT_PUBLIC_APP_URL}/api/instagram/callback`, and add `META_APP_ID` + `META_APP_SECRET` to
+  `.env.local`. The app must be in Live mode or the test user must be added as a tester.
+- **Instagram Business Account required:** The OAuth flow uses the Pages API to find the IG
+  Business Account linked to a Facebook Page. Personal IG accounts are not supported.
+- **Inngest sync trigger:** The callback fires `instagram/sync.requested` via a direct fetch to
+  `/api/inngest`. In production this requires the Inngest event key to be set. In dev, start the
+  Inngest dev server (`npx inngest-cli@latest dev`) and workers app together.
+- **Token refresh:** Long-lived tokens expire in 60 days. A future session must implement a cron
+  job to refresh tokens before expiry using the `GET /oauth/access_token` endpoint with
+  `grant_type=ig_refresh_token`.
+- **`@tremor/react` installed but not used:** The spec mentioned Tremor; charts were implemented
+  with Recharts directly (already installed as Tremor dependency). Tremor v3 components conflict
+  with Next.js 14 App Router server components. Recharts directly is the correct approach.
+- **Supabase image domain:** Media URLs from Meta CDN (`scontent-*.cdninstagram.com`) are not in
+  `next.config.mjs` remotePatterns. Add this pattern before thumbnails in ContentTable render.
+- **`next/headers` cookies in route handlers:** Next.js 14 `cookies()` in route handlers works
+  synchronously. The `await cookies()` call in connect/callback routes works because awaiting a
+  non-Promise is a no-op in JS.

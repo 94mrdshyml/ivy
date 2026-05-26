@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createSupabaseServerClient, db } from "@ivy/db";
 import {
   InstagramIcon,
   FacebookIcon,
   YoutubeIcon,
 } from "@/components/social-icons";
+import { DisconnectButton } from "./disconnect-button";
 
 const platforms = [
   {
@@ -12,18 +14,21 @@ const platforms = [
     label: "Instagram",
     icon: InstagramIcon,
     color: "#E1306C",
+    connectHref: "/api/instagram/connect",
   },
   {
     key: "FACEBOOK" as const,
     label: "Facebook",
     icon: FacebookIcon,
     color: "#1877F2",
+    connectHref: null,
   },
   {
     key: "YOUTUBE" as const,
     label: "YouTube",
     icon: YoutubeIcon,
     color: "#FF0000",
+    connectHref: null,
   },
 ];
 
@@ -52,7 +57,7 @@ export default async function ConnectionsPage() {
       </p>
 
       <div className="space-y-3">
-        {platforms.map(({ key, label, icon: Icon, color }) => {
+        {platforms.map(({ key, label, icon: Icon, color, connectHref }) => {
           const isConnected = connected.has(key);
           return (
             <div
@@ -74,19 +79,28 @@ export default async function ConnectionsPage() {
                   </p>
                 </div>
               </div>
-              <button
-                disabled
-                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-white/50 opacity-50 cursor-not-allowed"
-              >
-                {isConnected ? "Disconnect" : "Connect"}
-              </button>
+
+              {isConnected ? (
+                <DisconnectButton platform={label} />
+              ) : connectHref ? (
+                <Link
+                  href={connectHref}
+                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:bg-white/5"
+                >
+                  Connect
+                </Link>
+              ) : (
+                <button
+                  disabled
+                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-white/30 cursor-not-allowed"
+                >
+                  Coming soon
+                </button>
+              )}
             </div>
           );
         })}
       </div>
-      <p className="mt-4 text-xs text-white/30">
-        Platform OAuth connections coming in Session 2b.
-      </p>
     </div>
   );
 }

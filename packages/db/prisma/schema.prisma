@@ -58,10 +58,11 @@ model Organization {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  members        Membership[]
-  invitations    Invitation[]
-  socialAccounts SocialAccount[]
-  auditLogs      AuditLog[]
+  members           Membership[]
+  invitations       Invitation[]
+  socialAccounts    SocialAccount[]
+  instagramAccounts InstagramAccount[]
+  auditLogs         AuditLog[]
 }
 
 model Membership {
@@ -111,10 +112,83 @@ model SocialAccount {
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
-  org Organization @relation(fields: [orgId], references: [id])
+  org              Organization      @relation(fields: [orgId], references: [id])
+  instagramAccount InstagramAccount?
 
   @@unique([orgId, platform])
   @@index([orgId])
+}
+
+model InstagramAccount {
+  id              String    @id
+  orgId           String
+  socialAccountId String    @unique
+  igUserId        String    @unique
+  handle          String
+  name            String?
+  profilePicUrl   String?
+  followersCount  Int       @default(0)
+  accessToken     String
+  tokenExpiresAt  DateTime?
+  lastSyncedAt    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  org           Organization    @relation(fields: [orgId], references: [id])
+  socialAccount SocialAccount   @relation(fields: [socialAccountId], references: [id])
+  metrics       InstagramMetric[]
+  posts         InstagramPost[]
+
+  @@index([orgId])
+}
+
+model InstagramMetric {
+  id                 String   @id
+  orgId              String
+  instagramAccountId String
+  date               DateTime @db.Date
+  followersCount     Int?
+  impressions        Int?
+  reach              Int?
+  profileViews       Int?
+  accountsEngaged    Int?
+  websiteClicks      Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  instagramAccount InstagramAccount @relation(fields: [instagramAccountId], references: [id])
+
+  @@unique([instagramAccountId, date])
+  @@index([orgId])
+  @@index([instagramAccountId])
+}
+
+model InstagramPost {
+  id                 String    @id
+  orgId              String
+  instagramAccountId String
+  igMediaId          String    @unique
+  mediaType          String
+  caption            String?
+  mediaUrl           String?
+  thumbnailUrl       String?
+  permalink          String?
+  timestamp          DateTime
+  likes              Int?
+  comments           Int?
+  shares             Int?
+  saves              Int?
+  reach              Int?
+  impressions        Int?
+  engagementRate     Float?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  instagramAccount InstagramAccount @relation(fields: [instagramAccountId], references: [id])
+
+  @@index([orgId])
+  @@index([instagramAccountId])
 }
 
 model AuditLog {

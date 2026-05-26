@@ -16,7 +16,10 @@
   },
   "dependencies": {
     "@prisma/client": "^5.16.0",
-    "@supabase/supabase-js": "^2.44.0"
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.44.0",
+    "nanoid": "^5.1.11",
+    "next": "14.2.4"
   },
   "devDependencies": {
     "@ivy/tsconfig": "workspace:*",

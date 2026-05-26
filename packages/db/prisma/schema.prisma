@@ -7,11 +7,129 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Enums ───────────────────────────────────────────────
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+enum Platform {
+  INSTAGRAM
+  FACEBOOK
+  YOUTUBE
+}
+
+// ─── Core Models ─────────────────────────────────────────
+
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
+  id        String    @id
+  email     String    @unique
   name      String?
-  handle    String?  @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  avatarUrl String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  memberships Membership[]
+  auditLogs   AuditLog[]
+}
+
+model Organization {
+  id        String    @id
+  name      String
+  slug      String    @unique
+  plan      Plan      @default(FREE)
+  logoUrl   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  members        Membership[]
+  invitations    Invitation[]
+  socialAccounts SocialAccount[]
+  auditLogs      AuditLog[]
+}
+
+model Membership {
+  id        String    @id
+  orgId     String
+  userId    String
+  role      Role      @default(MEMBER)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  org  Organization @relation(fields: [orgId], references: [id])
+  user User         @relation(fields: [userId], references: [id])
+
+  @@unique([orgId, userId])
+  @@index([orgId])
+  @@index([userId])
+}
+
+model Invitation {
+  id        String           @id
+  orgId     String
+  email     String
+  role      Role             @default(MEMBER)
+  token     String           @unique
+  status    InvitationStatus @default(PENDING)
+  expiresAt DateTime
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  deletedAt DateTime?
+
+  org Organization @relation(fields: [orgId], references: [id])
+
+  @@index([orgId])
+  @@index([token])
+}
+
+model SocialAccount {
+  id             String    @id
+  orgId          String
+  platform       Platform
+  platformId     String
+  handle         String
+  accessToken    String
+  tokenExpiresAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  org Organization @relation(fields: [orgId], references: [id])
+
+  @@unique([orgId, platform])
+  @@index([orgId])
+}
+
+model AuditLog {
+  id           String   @id
+  orgId        String
+  userId       String?
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id])
+  user User?        @relation(fields: [userId], references: [id])
+
+  @@index([orgId])
+  @@index([userId])
 }

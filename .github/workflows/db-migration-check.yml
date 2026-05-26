@@ -26,6 +26,10 @@ jobs:
 
       - name: Validate schema
         run: pnpm --filter @ivy/db exec prisma validate
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
 
       - name: Check schema formatting
         run: pnpm --filter @ivy/db exec prisma format --check
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy

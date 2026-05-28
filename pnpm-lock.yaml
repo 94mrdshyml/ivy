@@ -58,6 +58,9 @@ importers:
       geist:
         specifier: ^1.7.1
         version: 1.7.1(next@14.2.4(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))
+      inngest:
+        specifier: ^3.22.0
+        version: 3.54.2(@opentelemetry/core@2.7.1(@opentelemetry/api@1.9.1))(next@14.2.4(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(typescript@5.9.3)(zod@4.4.3)
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@18.3.1)

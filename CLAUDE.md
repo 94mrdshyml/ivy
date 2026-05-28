@@ -127,9 +127,10 @@ After every push to main, Claude Code **must**:
 2. If it fails, read the full error log.
 3. Fix the root cause (not just the symptom).
 4. Push the fix and watch again.
-5. Only report success once the deploy workflow is green and the Vercel URL is live.
+5. Once all GH Actions are green, **also check Vercel deploy status** using `vercel ls ivy-idm --scope mridushyamal-barmans-projects`. If the latest deployment shows `● Error`, fetch its logs with `vercel inspect <deployment-url> --scope mridushyamal-barmans-projects --logs` and fix the root cause.
+6. Only report success once the deploy workflow is green AND the Vercel deployment status is not Error.
 
-Use `gh run watch` or poll `gh run list --limit 1` to track status.
+Use `gh run watch` or poll `gh run list --limit 1` to track GH Actions status. Use `vercel ls` to track Vercel deploy status.
 
 ---
 

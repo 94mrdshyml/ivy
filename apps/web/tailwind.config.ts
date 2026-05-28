@@ -49,6 +49,11 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        ivy: {
+          green: "#00D97E",
+          surface: "#15161E",
+          bg: "#08090C",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

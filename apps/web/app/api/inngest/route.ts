@@ -2,7 +2,7 @@ import { serve } from "inngest/next";
 import { Inngest } from "inngest";
 import { db, ids } from "@ivy/db";
 
-export const inngest = new Inngest({ id: "ivy" });
+const inngest = new Inngest({ id: "ivy" });
 
 const GRAPH = "https://graph.facebook.com/v19.0";
 

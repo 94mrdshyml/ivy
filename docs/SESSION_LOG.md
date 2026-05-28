@@ -299,3 +299,88 @@ upserts now use `?? null`.
 - **`next/headers` cookies in route handlers:** Next.js 14 `cookies()` in route handlers works
   synchronously. The `await cookies()` call in connect/callback routes works because awaiting a
   non-Promise is a no-op in JS.
+
+---
+
+## Session 2c — CI/CD Fixes, Vercel Production Deploy & Inngest Wiring
+
+**Date & Time (IST):** 2026-05-28 20:30 IST
+**Status:** Completed
+
+### What We Built
+
+No new features. Full CI/CD pipeline brought to green, Vercel production deploy working end-to-end, Supabase schema migrated, and Inngest serve handler added to the web app.
+
+### How We Built It
+
+**CI fixes (12 commits):**
+
+- Added `"packageManager": "pnpm@9.15.9"` to root `package.json` — required by Turborepo v2 for workspace resolution. This conflicted with `version: 9` in `pnpm/action-setup@v4` steps; removed `version:` from all workflow files so the action reads `packageManager` automatically.
+- Added `contents: read` permission to `preview-deploy.yml`, `bundle-size.yml`, `security-audit.yml` — Vercel's team checkout was returning 403 without it.
+- Added dummy `DATABASE_URL` env to `db-migration-check.yml` — `prisma validate` reads the datasource URL even for schema-only validation.
+- Added `eslint` + `@typescript-eslint/*` devDeps and `.eslintrc.js` to `apps/workers` and `packages/ui` — they ran `eslint src/` with no eslint installed.
+- Ran `prisma format` to fix schema formatting — `prisma format --check` in CI was failing on unformatted schema.
+- Added `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to `bundle-size.yml` build step — Next.js prerendering of auth pages calls Supabase client at build time.
+- Made `supabase` and `supabaseAdmin` lazy-initialized (`getSupabase()`/`getSupabaseAdmin()` getter functions) — module-level `createClient()` crashes the build when env vars are absent.
+- Added `continue-on-error: true` to the PR comment step in `preview-deploy.yml` — deploy itself succeeds but comment posting fails due to token permissions; non-critical.
+- Added `vercel.json` at repo root to configure `outputDirectory: apps/web/.next` and `buildCommand: pnpm turbo build --filter web`.
+- Fixed `production-deploy.yml` to use `vercel --prod --yes` (source deploy) rather than the prebuilt artifact approach — `vercel build` without framework detection packs `.next` as static files, breaking Next.js routing.
+
+**Vercel project configuration:**
+
+- Used Vercel API (`PATCH /v9/projects/{id}`) to set `rootDirectory: apps/web`, `framework: nextjs`, `buildCommand: cd ../../ && pnpm turbo build --filter web`, `outputDirectory: .next`. This was the root cause of the production 404 — Vercel detected "Other" framework and served output as static files with no routes.
+- Added `HUSKY=0` env var to Vercel project via API — second `pnpm install` in the build command (from `../../`) runs in `NODE_ENV=production`, strips devDeps including husky, causing the `prepare` script to fail.
+- Fixed build command to remove the extra `pnpm install` call — Vercel's install step already handles this; re-running it from the repo root downgraded deps.
+- `vercel.json` simplified to `{"framework": "nextjs"}` after project settings took over.
+
+**Vercel + GitHub auth:**
+
+- Connected GitHub account (`94mrdshyml`) to Vercel account settings — Hobby plan requires commit author email to match a verified Vercel account login. Before this fix, Vercel blocked all deploys with `NOT_FOUND` because `mridu@mrdshyml.xyz` (the git commit email) could not be matched.
+
+**Database:**
+
+- No Prisma migration files existed — `prisma migrate deploy` was silently creating only the `_prisma_migrations` tracking table. Ran `prisma migrate dev --name init` locally to generate `packages/db/prisma/migrations/20260528141045_init/migration.sql` and apply it to Supabase. Schema now fully deployed.
+- Added `directUrl = env("DIRECT_URL")` to `schema.prisma` datasource — Supabase transaction pooler (port 6543) blocks advisory locks used by `prisma migrate`. `DIRECT_URL` must point to the session pooler or direct connection (port 5432).
+- `DATABASE_URL` for runtime uses the transaction pooler with `?pgbouncer=true`. `DIRECT_URL` for migrations uses the session pooler without pgbouncer.
+
+**Inngest serve handler:**
+
+- Created `apps/web/app/api/inngest/route.ts` — Next.js App Router route that serves the `instagram-sync` function via `inngest/next` serve helper. Workers app cannot be deployed as a persistent server on Vercel; the serve endpoint must live in the Next.js app.
+- Added `inngest` to `apps/web` package.json dependencies.
+- The `instagramSync` function is defined directly in the route file (duplicated from workers) rather than importing from workers — workers uses `module: CommonJS` tsconfig which is incompatible with Next.js bundler resolution.
+- Sync URL for Inngest dashboard: `https://ivy.indexdaily.in/api/inngest`.
+
+### In Scope
+
+- All `.github/workflows/*.yml` — CI permission, version, and env fixes
+- `package.json` root — `packageManager` field
+- `apps/workers/.eslintrc.js` + ESLint devDeps
+- `packages/ui/.eslintrc.js` + ESLint devDeps
+- `packages/db/src/supabase.ts` — lazy init for `getSupabase()`/`getSupabaseAdmin()`
+- `packages/db/src/index.ts` — updated exports
+- `packages/db/prisma/schema.prisma` — `directUrl` datasource field
+- `packages/db/prisma/migrations/20260528141045_init/` — initial migration SQL
+- `apps/web/.env.example` — added `DIRECT_URL`
+- `apps/web/app/api/inngest/route.ts` — Inngest serve handler
+- `vercel.json` — simplified to `{"framework": "nextjs"}`
+- `CLAUDE.md` — added Vercel deploy check to GH Actions Watch Protocol
+
+### Out of Scope
+
+- Facebook and YouTube OAuth
+- Instagram token refresh cron
+- Inngest signing key / event key wiring (INNGEST_SIGNING_KEY, INNGEST_EVENT_KEY not yet set in Vercel env)
+
+### Breaking Changes
+
+- `supabase` and `supabaseAdmin` are no longer direct exports from `@ivy/db`. They are now `getSupabase()` and `getSupabaseAdmin()` getter functions. Any future code that imports `supabase` directly from `@ivy/db` will fail — use the getter functions instead.
+
+### Notes for Future Sessions
+
+- **Inngest env vars needed in Vercel:** `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` must be set in the Vercel project environment for the serve handler to validate requests from Inngest in production. Without them, the endpoint accepts requests without signature verification (works but insecure).
+- **Inngest app sync required:** After each deploy, the Inngest dashboard may need to be resynced at `https://ivy.indexdaily.in/api/inngest` if function signatures change.
+- **Workers app is now dev-only:** `apps/workers` runs the Inngest dev server locally. In production, all Inngest functions are served from `apps/web/app/api/inngest/route.ts`. The two are currently kept in sync manually — consider moving function definitions to a shared `packages/inngest` package to avoid drift.
+- **`DATABASE_URL` vs `DIRECT_URL`:** Both must be set in GH Secrets and Vercel env. `DATABASE_URL` = transaction pooler (port 6543, `?pgbouncer=true`). `DIRECT_URL` = session pooler (port 5432, no pgbouncer). Using `DIRECT_URL` for migrations is mandatory.
+- **Vercel project settings live outside the repo:** Root directory, build command, and framework preset were set via Vercel API — they are not in `vercel.json`. If the Vercel project is recreated, these must be reapplied.
+- **Supabase avatars bucket:** Still needs to be created manually in Supabase Storage with public access for profile photo upload to work.
+- **Meta CDN domain still missing from `next.config.mjs`:** `scontent-*.cdninstagram.com` must be added to `remotePatterns` before Instagram post thumbnails render in the content table.

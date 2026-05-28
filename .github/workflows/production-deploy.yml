@@ -26,6 +26,7 @@ jobs:
         run: pnpm --filter @ivy/db db:migrate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
 
   build:
     name: Build

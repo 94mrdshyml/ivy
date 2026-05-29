@@ -210,22 +210,24 @@ model InstagramPost {
 // ─── Link in Bio ─────────────────────────────────────────
 
 model LinkPage {
-  id          String    @id
-  orgId       String    @unique
-  username    String    @unique
-  displayName String?
-  bio         String?
-  avatarUrl   String?
-  accentColor String?   @default("#00D97E")
-  theme       String    @default("dark")
-  isPublished Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  id             String    @id
+  orgId          String    @unique
+  username       String    @unique
+  displayName    String?
+  bio            String?
+  avatarUrl      String?
+  coverImageUrl  String?
+  accentColor    String?   @default("#00D97E")
+  theme          String    @default("dark")
+  isPublished    Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
 
   org            Organization    @relation(fields: [orgId], references: [id])
   links          Link[]
   socialProfiles SocialProfile[]
+  subscribers    Subscriber[]
 
   @@index([orgId])
   @@index([username])
@@ -281,6 +283,23 @@ model SocialProfile {
 
   @@index([orgId])
   @@index([linkPageId])
+}
+
+model Subscriber {
+  id         String   @id
+  orgId      String
+  linkPageId String
+  email      String
+  firstName  String?
+  lastName   String?
+  createdAt  DateTime @default(now())
+
+  linkPage LinkPage @relation(fields: [linkPageId], references: [id])
+
+  @@unique([linkPageId, email])
+  @@index([orgId])
+  @@index([linkPageId])
+  @@index([createdAt])
 }
 
 // ─── Audit ───────────────────────────────────────────────

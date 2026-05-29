@@ -69,6 +69,7 @@ export async function PUT(req: NextRequest) {
       displayName?: string | null;
       bio?: string | null;
       avatarUrl?: string | null;
+      coverImageUrl?: string | null;
       accentColor?: string | null;
       theme?: string;
       isPublished?: boolean;
@@ -78,6 +79,8 @@ export async function PUT(req: NextRequest) {
     if ("displayName" in body) data.displayName = body.displayName ?? null;
     if ("bio" in body) data.bio = body.bio ?? null;
     if ("avatarUrl" in body) data.avatarUrl = body.avatarUrl ?? null;
+    if ("coverImageUrl" in body)
+      data.coverImageUrl = body.coverImageUrl ?? null;
     if ("accentColor" in body) data.accentColor = body.accentColor ?? null;
     if ("theme" in body && body.theme !== undefined) data.theme = body.theme;
     if ("isPublished" in body && body.isPublished !== undefined)

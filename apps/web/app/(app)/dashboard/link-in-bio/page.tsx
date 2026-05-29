@@ -53,18 +53,23 @@ export default async function LinkInBioPage() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const [totalClicks, recentClicks, clicksByDay] = await Promise.all([
-    db.linkClick.count({ where: { orgId: org.id } }),
-    db.linkClick.count({
-      where: { orgId: org.id, createdAt: { gte: thirtyDaysAgo } },
-    }),
-    db.linkClick.groupBy({
-      by: ["createdAt"],
-      where: { orgId: org.id, createdAt: { gte: thirtyDaysAgo } },
-      _count: true,
-      orderBy: { createdAt: "asc" },
-    }),
-  ]);
+  const [totalClicks, recentClicks, clicksByDay, subscribers] =
+    await Promise.all([
+      db.linkClick.count({ where: { orgId: org.id } }),
+      db.linkClick.count({
+        where: { orgId: org.id, createdAt: { gte: thirtyDaysAgo } },
+      }),
+      db.linkClick.groupBy({
+        by: ["createdAt"],
+        where: { orgId: org.id, createdAt: { gte: thirtyDaysAgo } },
+        _count: true,
+        orderBy: { createdAt: "asc" },
+      }),
+      db.subscriber.findMany({
+        where: { orgId: org.id },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
 
   // Clicks per link
   const linkClickCounts = await db.linkClick.groupBy({
@@ -102,6 +107,7 @@ export default async function LinkInBioPage() {
       recentClicks={recentClicks}
       dailyData={dailyData}
       linkClickMap={linkClickMap}
+      subscribers={subscribers}
       appUrl={appUrl}
     />
   );

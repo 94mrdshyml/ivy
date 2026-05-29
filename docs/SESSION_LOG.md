@@ -384,3 +384,61 @@ No new features. Full CI/CD pipeline brought to green, Vercel production deploy 
 - **Vercel project settings live outside the repo:** Root directory, build command, and framework preset were set via Vercel API — they are not in `vercel.json`. If the Vercel project is recreated, these must be reapplied.
 - **Supabase avatars bucket:** Still needs to be created manually in Supabase Storage with public access for profile photo upload to work.
 - **Meta CDN domain still missing from `next.config.mjs`:** `scontent-*.cdninstagram.com` must be added to `remotePatterns` before Instagram post thumbnails render in the content table.
+
+---
+
+## Session 2d — Production Bug Fixes
+
+**Date & Time (IST):** 2026-05-29 11:30 IST
+**Status:** Completed
+
+### What We Built
+
+No new features. Fixed three production bugs discovered after first live deployment: auth session not persisting after login, Prisma native engine not found on Vercel, and GH Actions quota exhaustion.
+
+### How We Built It
+
+**Auth session bug (login stuck on "Signing in…"):**
+All client-side pages (`/login`, `/register`, `/forgot-password`, `/reset-password`, `/onboarding`, profile-form) used `createClient` from `@supabase/supabase-js`. This stores the session in `localStorage`. The middleware uses `createServerClient` from `@supabase/ssr` which reads from cookies. Mismatch meant middleware saw no session after login and silently redirected back to `/login`, causing the button to stay in loading state indefinitely. Fixed by replacing all `createClient` calls with `createBrowserClient` from `@supabase/ssr`, which writes the session to cookies that the middleware can read.
+
+**Prisma engine not found on Vercel (`rhel-openssl-3.0.x`):**
+Root cause: `transpilePackages: ['@ivy/db']` caused Next.js webpack to bundle `@prisma/client` inline into chunks. When bundled, Prisma's native engine loader uses `__dirname` pointing to `.next/server/chunks/` instead of the actual `@prisma/client` package location — so it can't resolve the engine binary path. Multiple attempted workarounds failed:
+
+- `binaryTargets = ["native", "rhel-openssl-3.0.x"]` alone: generates binary but bundling still breaks resolution
+- `serverComponentsExternalPackages`: overridden by `transpilePackages` for transitive imports
+- webpack externals (`@prisma/client`): broke Vercel file tracing with pnpm symlinks → `Cannot find module '@prisma/client'`
+- `outputFileTracingRoot`: helped but didn't fix bundling
+
+**Correct fix:** `@prisma/nextjs-monorepo-workaround-plugin` — the official Prisma-maintained webpack plugin for monorepo deployments on Vercel. It copies the Prisma engine binary (`libquery_engine-rhel-openssl-3.0.x.so.node`) next to the Next.js bundle during build, so Prisma can find it at the expected path at runtime. Added to `apps/web/package.json` devDeps and registered in `next.config.mjs` webpack config.
+
+**GH Actions quota exhausted:**
+1550 of 2000 free private-repo minutes consumed in one day during repeated CI debugging loops. Made repo public to restore unlimited free Actions minutes.
+
+### In Scope
+
+- `apps/web/app/(auth)/login/page.tsx` — `createBrowserClient`
+- `apps/web/app/(auth)/register/page.tsx` — `createBrowserClient`
+- `apps/web/app/(auth)/forgot-password/page.tsx` — `createBrowserClient`
+- `apps/web/app/(auth)/reset-password/page.tsx` — `createBrowserClient`
+- `apps/web/app/onboarding/page.tsx` — `createBrowserClient`
+- `apps/web/app/(app)/dashboard/settings/profile/profile-form.tsx` — `createBrowserClient`
+- `apps/web/next.config.mjs` — PrismaPlugin, outputFileTracingRoot
+- `apps/web/package.json` — `@prisma/nextjs-monorepo-workaround-plugin`
+- `packages/db/prisma/schema.prisma` — `binaryTargets = ["native", "rhel-openssl-3.0.x"]`
+
+### Out of Scope
+
+- Facebook and YouTube OAuth
+- Instagram token refresh cron
+- Inngest signing key configuration
+
+### Breaking Changes
+
+NONE — all fixes are backwards compatible.
+
+### Notes for Future Sessions
+
+- **`createBrowserClient` everywhere:** Any new client component that touches Supabase auth must use `createBrowserClient` from `@supabase/ssr`, not `createClient` from `@supabase/supabase-js`. The distinction matters: `supabase-js` uses localStorage, `@supabase/ssr` uses cookies. Middleware reads cookies only.
+- **Prisma in monorepos:** `@prisma/nextjs-monorepo-workaround-plugin` must stay in `next.config.mjs`. If removed, the `rhel-openssl-3.0.x` engine error returns on Vercel. The underlying cause is `transpilePackages: ['@ivy/db']` bundling `@prisma/client` — this will remain until `@ivy/db` is compiled to JavaScript and removed from `transpilePackages`.
+- **GH Actions budget:** Repo is now public (unlimited free minutes). If repo is ever made private again, 2000 min/month limit reapplies — avoid CI loops.
+- **`next.config.mjs` has `outputFileTracingRoot`:** Set to monorepo root so Vercel's file tracer can find packages from `../../node_modules`. Do not remove this.

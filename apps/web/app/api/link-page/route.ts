@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import {
   createSupabaseServerClient,
   db,
@@ -16,6 +17,14 @@ async function getAuthContext() {
   } = await supabase.auth.getUser();
   if (!user) throw new UnauthorizedError();
   return getOrgContext(user.id);
+}
+
+async function revalidatePublicPage(orgId: string) {
+  const lp = await db.linkPage.findUnique({
+    where: { orgId },
+    select: { username: true },
+  });
+  if (lp) revalidatePath(`/${lp.username}`);
 }
 
 export async function GET() {
@@ -69,6 +78,7 @@ export async function PUT(req: NextRequest) {
       bio?: string | null;
       avatarUrl?: string | null;
       accentColor?: string | null;
+      theme?: string;
       isPublished?: boolean;
     };
 
@@ -77,6 +87,7 @@ export async function PUT(req: NextRequest) {
     if ("bio" in body) data.bio = body.bio ?? null;
     if ("avatarUrl" in body) data.avatarUrl = body.avatarUrl ?? null;
     if ("accentColor" in body) data.accentColor = body.accentColor ?? null;
+    if ("theme" in body && body.theme !== undefined) data.theme = body.theme;
     if ("isPublished" in body && body.isPublished !== undefined)
       data.isPublished = body.isPublished;
 
@@ -85,6 +96,7 @@ export async function PUT(req: NextRequest) {
       data,
     });
 
+    revalidatePath(`/${linkPage.username}`);
     return NextResponse.json(linkPage);
   } catch (err) {
     if (err instanceof UnauthorizedError)

@@ -217,6 +217,7 @@ model LinkPage {
   bio         String?
   avatarUrl   String?
   accentColor String?   @default("#00D97E")
+  theme       String    @default("dark")
   isPublished Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

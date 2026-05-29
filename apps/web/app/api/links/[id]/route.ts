@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import {
   createSupabaseServerClient,
   db,
@@ -15,6 +16,14 @@ async function getAuthContext() {
   } = await supabase.auth.getUser();
   if (!user) throw new UnauthorizedError();
   return getOrgContext(user.id);
+}
+
+async function revalidatePublicPage(orgId: string) {
+  const lp = await db.linkPage.findUnique({
+    where: { orgId },
+    select: { username: true },
+  });
+  if (lp) revalidatePath(`/${lp.username}`);
 }
 
 export async function PUT(
@@ -41,6 +50,8 @@ export async function PUT(
 
     if (result.count === 0)
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    await revalidatePublicPage(org.id);
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof UnauthorizedError)
@@ -65,6 +76,8 @@ export async function DELETE(
 
     if (result.count === 0)
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    await revalidatePublicPage(org.id);
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof UnauthorizedError)

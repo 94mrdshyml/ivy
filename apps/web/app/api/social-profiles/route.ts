@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import {
   createSupabaseServerClient,
   db,
@@ -50,6 +51,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    revalidatePath(`/${linkPage.username}`);
     return NextResponse.json(profile, { status: 201 });
   } catch (err) {
     if (err instanceof UnauthorizedError)

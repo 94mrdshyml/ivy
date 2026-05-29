@@ -19,14 +19,6 @@ async function getAuthContext() {
   return getOrgContext(user.id);
 }
 
-async function revalidatePublicPage(orgId: string) {
-  const lp = await db.linkPage.findUnique({
-    where: { orgId },
-    select: { username: true },
-  });
-  if (lp) revalidatePath(`/${lp.username}`);
-}
-
 export async function GET() {
   try {
     const { org } = await getAuthContext();

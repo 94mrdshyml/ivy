@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import {
   createSupabaseServerClient,
   db,
@@ -31,6 +32,12 @@ export async function PUT(req: NextRequest) {
         }),
       ),
     );
+
+    const lp = await db.linkPage.findUnique({
+      where: { orgId: org.id },
+      select: { username: true },
+    });
+    if (lp) revalidatePath(`/${lp.username}`);
 
     return NextResponse.json({ ok: true });
   } catch (err) {

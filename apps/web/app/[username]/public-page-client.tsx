@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useReducedMotion, motion } from "framer-motion";
 import type { LinkPage, Link, SocialProfile, SocialPlatform } from "@ivy/db";
 
-const SOCIAL_ICONS: Record<SocialPlatform, string> = {
+const SOCIAL_HREFS: Record<SocialPlatform, string> = {
   INSTAGRAM: "/icons/social/instagram.svg",
   TWITTER: "/icons/social/twitter.svg",
   YOUTUBE: "/icons/social/youtube.svg",
@@ -24,6 +24,42 @@ const SOCIAL_LABELS: Record<SocialPlatform, string> = {
   LINKEDIN: "LinkedIn",
   GITHUB: "GitHub",
   WEBSITE: "Website",
+};
+
+interface ThemeTokens {
+  bg: string;
+  card: string;
+  cardBorder: string;
+  cardHover: string;
+  hoverBorder: string;
+  textPrimary: string;
+  textSecond: string;
+  textMuted: string;
+  iconFilter: string;
+}
+
+const DARK: ThemeTokens = {
+  bg: "#08090C",
+  card: "#0F1015",
+  cardBorder: "rgba(255,255,255,0.07)",
+  cardHover: "#15161E",
+  hoverBorder: "rgba(255,255,255,0.12)",
+  textPrimary: "#EEEEF2",
+  textSecond: "#A0A0B0",
+  textMuted: "rgba(160,160,176,0.30)",
+  iconFilter: "invert(1) opacity(0.45)",
+};
+
+const LIGHT: ThemeTokens = {
+  bg: "#FAFAFA",
+  card: "#FFFFFF",
+  cardBorder: "rgba(0,0,0,0.08)",
+  cardHover: "#F5F5F5",
+  hoverBorder: "rgba(0,0,0,0.15)",
+  textPrimary: "#111111",
+  textSecond: "#666666",
+  textMuted: "rgba(80,80,80,0.45)",
+  iconFilter: "opacity(0.55)",
 };
 
 interface Props {
@@ -53,8 +89,9 @@ function handleLinkClick(linkId: string) {
 
 export function PublicPageClient({ page }: Props) {
   const reducedMotion = useReducedMotion();
-
+  const t = page.theme === "light" ? LIGHT : DARK;
   const accentColor = page.accentColor ?? "#00D97E";
+  const displayName = page.displayName || page.username;
 
   const profileAnim = reducedMotion
     ? {}
@@ -82,11 +119,11 @@ export function PublicPageClient({ page }: Props) {
       };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#08090C" }}>
+    <div className="min-h-screen" style={{ backgroundColor: t.bg }}>
       <div
         style={{ maxWidth: 480, margin: "0 auto", padding: "40px 20px 80px" }}
       >
-        {/* Profile section */}
+        {/* Profile */}
         <motion.div
           {...profileAnim}
           style={{
@@ -104,7 +141,7 @@ export function PublicPageClient({ page }: Props) {
               height: 72,
               borderRadius: 9999,
               overflow: "hidden",
-              border: "2px solid rgba(255,255,255,0.07)",
+              border: `2px solid ${t.cardBorder}`,
               marginBottom: 16,
               flexShrink: 0,
             }}
@@ -112,7 +149,7 @@ export function PublicPageClient({ page }: Props) {
             {page.avatarUrl ? (
               <Image
                 src={page.avatarUrl}
-                alt={page.displayName ?? page.username}
+                alt={displayName}
                 width={72}
                 height={72}
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
@@ -131,40 +168,40 @@ export function PublicPageClient({ page }: Props) {
                   color: accentColor,
                 }}
               >
-                {(page.displayName ?? page.username).charAt(0).toUpperCase()}
+                {displayName.charAt(0).toUpperCase()}
               </div>
             )}
           </div>
 
-          {/* Name */}
+          {/* Display name */}
           <h1
             style={{
               fontFamily: "var(--font-geist-sans)",
               fontSize: 22,
               fontWeight: 700,
-              color: "#EEEEF2",
+              color: t.textPrimary,
               lineHeight: 1.3,
               margin: 0,
             }}
           >
-            {page.displayName ?? page.username}
+            {displayName}
           </h1>
 
           {/* Bio */}
-          {page.bio && (
+          {page.bio && page.bio.trim() && (
             <p
               style={{
                 fontFamily: "var(--font-inter)",
                 fontSize: 14,
-                color: "#A0A0B0",
+                color: t.textSecond,
                 lineHeight: 1.5,
                 maxWidth: 320,
                 marginTop: 8,
                 marginBottom: 0,
+                overflow: "hidden",
                 display: "-webkit-box",
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: "vertical",
-                overflow: "hidden",
               }}
             >
               {page.bio}
@@ -179,6 +216,8 @@ export function PublicPageClient({ page }: Props) {
                 display: "flex",
                 alignItems: "center",
                 gap: 16,
+                flexWrap: "wrap",
+                justifyContent: "center",
               }}
             >
               {page.socialProfiles.map((sp) => (
@@ -188,27 +227,17 @@ export function PublicPageClient({ page }: Props) {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={SOCIAL_LABELS[sp.platform]}
-                  style={{
-                    color: "rgba(160, 160, 176, 0.50)",
-                    transition: "color 150ms",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.color = "#EEEEF2")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.color = "rgba(160, 160, 176, 0.50)")
-                  }
+                  style={{ display: "block", transition: "opacity 150ms" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.55")}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={SOCIAL_ICONS[sp.platform]}
+                    src={HREFS[sp.platform]}
                     alt={SOCIAL_LABELS[sp.platform]}
                     width={20}
                     height={20}
-                    style={{
-                      display: "block",
-                      filter: "invert(1) opacity(0.5)",
-                    }}
+                    style={{ display: "block", filter: t.iconFilter }}
                   />
                 </a>
               ))}
@@ -237,24 +266,24 @@ export function PublicPageClient({ page }: Props) {
                   width: "100%",
                   padding: "0 18px",
                   textAlign: "center",
-                  backgroundColor: "var(--bg-surface-1)",
-                  border: "1px solid rgba(255,255,255,0.07)",
+                  backgroundColor: t.card,
+                  border: `1px solid ${t.cardBorder}`,
                   borderRadius: "var(--radius-lg)",
                   fontFamily: "var(--font-inter)",
                   fontSize: 15,
                   fontWeight: 500,
-                  color: "#EEEEF2",
+                  color: t.textPrimary,
                   textDecoration: "none",
                   transition:
                     "background-color 180ms ease, border-color 180ms ease",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--bg-surface-2)";
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
+                  e.currentTarget.style.backgroundColor = t.cardHover;
+                  e.currentTarget.style.borderColor = t.hoverBorder;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--bg-surface-1)";
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
+                  e.currentTarget.style.backgroundColor = t.card;
+                  e.currentTarget.style.borderColor = t.cardBorder;
                 }}
               >
                 {link.title}
@@ -268,7 +297,7 @@ export function PublicPageClient({ page }: Props) {
           style={{
             fontFamily: "var(--font-inter)",
             fontSize: 12,
-            color: "rgba(160, 160, 176, 0.30)",
+            color: t.textMuted,
             textAlign: "center",
             marginTop: 40,
           }}
@@ -279,3 +308,6 @@ export function PublicPageClient({ page }: Props) {
     </div>
   );
 }
+
+// alias to avoid name collision with SOCIAL_LABELS
+const HREFS = SOCIAL_HREFS;

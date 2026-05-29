@@ -192,10 +192,12 @@ export function LinkInBioEditor({
   const [displayName, setDisplayName] = useState(page.displayName ?? "");
   const [bio, setBio] = useState(page.bio ?? "");
   const [accentColor, setAccentColor] = useState(page.accentColor ?? "#00D97E");
+  const [theme, setTheme] = useState(page.theme ?? "dark");
   const [isPublished, setIsPublished] = useState(page.isPublished);
   const [avatarUrl, setAvatarUrl] = useState(page.avatarUrl ?? "");
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
 
   // Social profile URLs (keyed by platform)
   const [socialUrls, setSocialUrls] = useState<Record<string, string>>(() => {
@@ -253,6 +255,7 @@ export function LinkInBioEditor({
       displayName: displayName || null,
       bio: bio || null,
       accentColor,
+      theme,
       avatarUrl: avatarUrl || null,
     });
     setSavingProfile(false);
@@ -266,6 +269,7 @@ export function LinkInBioEditor({
 
   async function handleAvatarUpload(file: File) {
     setUploadingAvatar(true);
+    setAvatarError("");
     const ext = file.name.split(".").pop();
     const path = `linkpage-${page.id}.${ext}`;
     const { error } = await supabase.storage
@@ -274,6 +278,11 @@ export function LinkInBioEditor({
     if (!error) {
       const { data } = supabase.storage.from("avatars").getPublicUrl(path);
       setAvatarUrl(data.publicUrl);
+      await savePageField({ avatarUrl: data.publicUrl });
+    } else {
+      setAvatarError(
+        "Upload failed. Ensure the 'avatars' bucket exists in Supabase Storage with public access.",
+      );
     }
     setUploadingAvatar(false);
   }
@@ -508,6 +517,11 @@ export function LinkInBioEditor({
               <p className="text-xs" style={{ color: "rgba(160,160,176,0.5)" }}>
                 PNG, JPG up to 2MB
               </p>
+              {avatarError && (
+                <p className="mt-1 text-xs" style={{ color: "#EF4444" }}>
+                  {avatarError}
+                </p>
+              )}
             </div>
             <input
               ref={fileRef}
@@ -606,6 +620,44 @@ export function LinkInBioEditor({
                   className="h-7 w-7 cursor-pointer rounded-full border-0 bg-transparent p-0"
                   title="Custom colour"
                 />
+              </div>
+            </div>
+
+            {/* Theme */}
+            <div>
+              <label
+                className="mb-2 block text-xs font-medium"
+                style={{ color: "#A0A0B0" }}
+              >
+                Page theme
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setTheme("dark")}
+                  className="flex items-center gap-1.5 rounded-ds-md border px-3 py-1.5 text-xs font-medium transition"
+                  style={{
+                    backgroundColor:
+                      theme === "dark" ? "rgba(0,217,126,0.1)" : "transparent",
+                    borderColor:
+                      theme === "dark" ? "#00D97E" : "rgba(255,255,255,0.1)",
+                    color: theme === "dark" ? "#00D97E" : "#A0A0B0",
+                  }}
+                >
+                  🌙 Dark
+                </button>
+                <button
+                  onClick={() => setTheme("light")}
+                  className="flex items-center gap-1.5 rounded-ds-md border px-3 py-1.5 text-xs font-medium transition"
+                  style={{
+                    backgroundColor:
+                      theme === "light" ? "rgba(0,217,126,0.1)" : "transparent",
+                    borderColor:
+                      theme === "light" ? "#00D97E" : "rgba(255,255,255,0.1)",
+                    color: theme === "light" ? "#00D97E" : "#A0A0B0",
+                  }}
+                >
+                  ☀️ Light
+                </button>
               </div>
             </div>
 

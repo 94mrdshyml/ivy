@@ -3,7 +3,7 @@ import { db } from "@ivy/db";
 import { PublicPageClient } from "./public-page-client";
 
 export const dynamicParams = true;
-export const revalidate = 3600;
+export const revalidate = 60;
 
 export async function generateStaticParams() {
   try {

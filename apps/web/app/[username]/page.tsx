@@ -6,11 +6,15 @@ export const dynamicParams = true;
 export const revalidate = 3600;
 
 export async function generateStaticParams() {
-  const pages = await db.linkPage.findMany({
-    where: { isPublished: true, deletedAt: null },
-    select: { username: true },
-  });
-  return pages.map((p) => ({ username: p.username }));
+  try {
+    const pages = await db.linkPage.findMany({
+      where: { isPublished: true, deletedAt: null },
+      select: { username: true },
+    });
+    return pages.map((p) => ({ username: p.username }));
+  } catch {
+    return [];
+  }
 }
 
 interface Props {

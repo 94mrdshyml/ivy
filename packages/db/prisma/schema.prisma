@@ -210,19 +210,19 @@ model InstagramPost {
 // ─── Link in Bio ─────────────────────────────────────────
 
 model LinkPage {
-  id             String    @id
-  orgId          String    @unique
-  username       String    @unique
-  displayName    String?
-  bio            String?
-  avatarUrl      String?
-  coverImageUrl  String?
-  accentColor    String?   @default("#00D97E")
-  theme          String    @default("dark")
-  isPublished    Boolean   @default(true)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  deletedAt      DateTime?
+  id            String    @id
+  orgId         String    @unique
+  username      String    @unique
+  displayName   String?
+  bio           String?
+  avatarUrl     String?
+  coverImageUrl String?
+  accentColor   String?   @default("#00D97E")
+  theme         String    @default("dark")
+  isPublished   Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
 
   org            Organization    @relation(fields: [orgId], references: [id])
   links          Link[]

@@ -46,6 +46,9 @@ importers:
       "@ivy/ui":
         specifier: workspace:*
         version: link:../../packages/ui
+      "@prisma/nextjs-monorepo-workaround-plugin":
+        specifier: ^7.8.0
+        version: 7.8.0
       "@supabase/ssr":
         specifier: ^0.10.3
         version: 0.10.3(@supabase/supabase-js@2.106.2)
@@ -1970,6 +1973,12 @@ packages:
     resolution:
       {
         integrity: sha512-pHhpQdr1UPFpt+zFfnPazhulaZYCUqeIcPpJViYoq9R+D/yw4fjE+CtnsnKzPYm0ddUbeXUzjGVGIRVgPDCk4Q==,
+      }
+
+  "@prisma/nextjs-monorepo-workaround-plugin@7.8.0":
+    resolution:
+      {
+        integrity: sha512-9KR2LKoyh0fXjLCUQSU/QAq2XD0xlKb66iQDhaaC9eMhBaPNB02f4RHPlMtOuei2z5sxoKRx5+d8Hs0julQh2g==,
       }
 
   "@protobufjs/aspromise@1.1.2":
@@ -8358,6 +8367,8 @@ snapshots:
   "@prisma/get-platform@5.22.0":
     dependencies:
       "@prisma/debug": 5.22.0
+
+  "@prisma/nextjs-monorepo-workaround-plugin@7.8.0": {}
 
   "@protobufjs/aspromise@1.1.2": {}
 

@@ -19,7 +19,7 @@
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.44.0",
     "nanoid": "^5.1.11",
-    "next": "14.2.4"
+    "next": "16.2.6"
   },
   "devDependencies": {
     "@ivy/tsconfig": "workspace:*",

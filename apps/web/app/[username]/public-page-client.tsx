@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { useReducedMotion, motion } from "framer-motion";
 import type { LinkPage, Link, SocialProfile, SocialPlatform } from "@ivy/db";
@@ -51,14 +52,14 @@ const DARK: ThemeTokens = {
 };
 
 const LIGHT: ThemeTokens = {
-  bg: "#FAFAFA",
+  bg: "#EFEFEF",
   card: "#FFFFFF",
-  cardBorder: "rgba(0,0,0,0.08)",
-  cardHover: "#F5F5F5",
-  hoverBorder: "rgba(0,0,0,0.15)",
+  cardBorder: "rgba(0,0,0,0.12)",
+  cardHover: "#F7F7F7",
+  hoverBorder: "rgba(0,0,0,0.20)",
   textPrimary: "#111111",
-  textSecond: "#666666",
-  textMuted: "rgba(80,80,80,0.45)",
+  textSecond: "#555555",
+  textMuted: "rgba(60,60,60,0.45)",
   iconFilter: "opacity(0.55)",
 };
 
@@ -89,7 +90,8 @@ function handleLinkClick(linkId: string) {
 
 export function PublicPageClient({ page }: Props) {
   const reducedMotion = useReducedMotion();
-  const t = page.theme === "light" ? LIGHT : DARK;
+  const [theme, setTheme] = useState(page.theme ?? "dark");
+  const t = theme === "light" ? LIGHT : DARK;
   const accentColor = page.accentColor ?? "#00D97E";
   const displayName = page.displayName || page.username;
 
@@ -293,17 +295,48 @@ export function PublicPageClient({ page }: Props) {
         </motion.div>
 
         {/* Footer */}
-        <p
+        <div
           style={{
-            fontFamily: "var(--font-inter)",
-            fontSize: 12,
-            color: t.textMuted,
-            textAlign: "center",
             marginTop: 40,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
           }}
         >
-          Made with Ivy
-        </p>
+          <p
+            style={{
+              fontFamily: "var(--font-inter)",
+              fontSize: 12,
+              color: t.textMuted,
+              margin: 0,
+            }}
+          >
+            Made with Ivy
+          </p>
+          <button
+            onClick={() => setTheme((v) => (v === "dark" ? "light" : "dark"))}
+            aria-label={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "4px 6px",
+              borderRadius: 6,
+              fontSize: 14,
+              lineHeight: 1,
+              opacity: 0.45,
+              color: t.textPrimary,
+              transition: "opacity 150ms",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.45")}
+          >
+            {theme === "dark" ? "☀️" : "🌙"}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -52,14 +52,14 @@ const DARK: ThemeTokens = {
 };
 
 const LIGHT: ThemeTokens = {
-  bg: "#FAFAFA",
+  bg: "#EFEFEF",
   card: "#FFFFFF",
-  cardBorder: "rgba(0,0,0,0.08)",
-  cardHover: "#F5F5F5",
-  hoverBorder: "rgba(0,0,0,0.15)",
+  cardBorder: "rgba(0,0,0,0.12)",
+  cardHover: "#F7F7F7",
+  hoverBorder: "rgba(0,0,0,0.20)",
   textPrimary: "#111111",
-  textSecond: "#666666",
-  textMuted: "rgba(80,80,80,0.45)",
+  textSecond: "#555555",
+  textMuted: "rgba(60,60,60,0.45)",
   iconFilter: "opacity(0.55)",
 };
 

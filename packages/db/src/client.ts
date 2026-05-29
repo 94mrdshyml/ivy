@@ -4,9 +4,25 @@ const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 export const db = globalForPrisma.prisma ?? new PrismaClient();
 
+const SOFT_DELETE_MODELS = new Set([
+  "User",
+  "Organization",
+  "Membership",
+  "Invitation",
+  "SocialAccount",
+  "InstagramAccount",
+  "LinkPage",
+  "Link",
+  "SocialProfile",
+]);
+
 db.$use(async (params, next) => {
   const readOps = ["findUnique", "findFirst", "findMany"];
-  if (params.model && readOps.includes(params.action)) {
+  if (
+    params.model &&
+    readOps.includes(params.action) &&
+    SOFT_DELETE_MODELS.has(params.model)
+  ) {
     if (!params.args) params.args = {};
     if (!params.args.where) params.args.where = {};
     params.args.where.deletedAt = null;

@@ -647,3 +647,85 @@ Complete rebuild of the registration and authentication flow. Email registration
 - **Step 9 must be done manually:** Delete all users from Supabase Auth dashboard, then run `DELETE FROM "Membership"; DELETE FROM "Organization"; DELETE FROM "User";` in Supabase SQL editor. Re-register fresh to verify the new flow.
 - **Setup form imports from register/actions:** `setup-form.tsx` imports `createUserRecords` from `app/(auth)/register/actions`. If register/actions.ts is ever moved or renamed, update this import.
 - **`checkUsernameAvailable` server action added to register/actions.ts:** Both register page and setup form use `/api/check-handle` directly (via fetch). The server action version is exported but currently unused — reserved for future use where a server-side check is needed.
+
+---
+
+## Session 5 — Cover Image, Subscriber Bell, Subscribe Modal, Subscribers Table
+
+**Date & Time (IST):** 2026-05-29 16:30 IST
+**Status:** Completed
+
+### What We Built
+
+Two linked features on the Link-in-Bio product: (1) a cover image for the public profile page with upload UI in the editor, and (2) a full subscriber flow — bell icon on public page opens a subscribe modal, visitors enter their email/name to subscribe, subscriptions are stored in a new `Subscriber` model, and the dashboard shows a subscribers table with count.
+
+### How We Built It
+
+**Schema:** Added `coverImageUrl String?` to `LinkPage`. Added new `Subscriber` model with `id`, `orgId`, `linkPageId`, `email`, `firstName?`, `lastName?`, `createdAt`. No `deletedAt` — subscribers are not soft-deleted. Unique constraint on `[linkPageId, email]`. Migration: `20260529120000_cover_image_subscribers`.
+
+**`/api/subscribe` route:** POST endpoint, validates email, checks for duplicate via `db.subscriber.findUnique({ where: { linkPageId_email } })`, creates record with `cuid()` id, returns 200 or 409 on duplicate. No auth required (public endpoint).
+
+**`/api/link-page` PATCH:** Added `coverImageUrl` to the allowed update fields alongside existing fields.
+
+**`public-page-client.tsx`:** Added cover image display at top of public page (full-width, rounded, with fallback). Added bell icon button (shadcn Button, ghost variant) fixed in header area. Subscribe modal (shadcn Dialog) with email + optional first/last name fields, calls `/api/subscribe`, shows success state on submit.
+
+**`editor.tsx` (dashboard):** Added cover image section with upload button. Calls Supabase Storage `link-page-assets` bucket, stores at `{orgId}/cover.{ext}`, then PATCHes `/api/link-page` with the new URL. Delete cover button removes from storage and clears DB field.
+
+**`ids.ts`:** Added `newSubscriberId()` using `cuid()` prefix `sub_`.
+
+**`link-in-bio/page.tsx`:** Added `db.subscriber.findMany({ where: { orgId }, orderBy: { createdAt: 'desc' } })` to page data fetch. Passes subscriber list and count to editor component. Editor renders subscribers table below link editor with columns: email, name, joined date.
+
+### In Scope
+
+- `packages/db/prisma/schema.prisma` — `coverImageUrl` on `LinkPage`, new `Subscriber` model
+- `packages/db/prisma/migrations/20260529120000_cover_image_subscribers/migration.sql`
+- `packages/db/src/ids.ts` — `newSubscriberId()`
+- `apps/web/app/api/subscribe/route.ts` — new public POST endpoint
+- `apps/web/app/api/link-page/route.ts` — `coverImageUrl` added to PATCH handler
+- `apps/web/app/[username]/public-page-client.tsx` — cover image display, bell button, subscribe modal
+- `apps/web/app/(app)/dashboard/link-in-bio/editor.tsx` — cover image upload UI, subscribers table
+- `apps/web/app/(app)/dashboard/link-in-bio/page.tsx` — fetch subscribers, pass to editor
+
+### Out of Scope
+
+- Email notifications on subscribe (Resend integration deferred)
+- Unsubscribe flow
+- Subscriber export / CSV download
+- Subscriber analytics / growth chart
+
+### Breaking Changes
+
+- NONE — `Subscriber` is an additive model, no existing queries affected
+
+### Notes for Future Sessions
+
+- **`Subscriber` has no `deletedAt`** — soft-delete middleware must NOT inject `deletedAt: null` on Subscriber queries. Fixed in Hotfix 1 (see below). Future models without soft-delete must be added to `SOFT_DELETE_MODELS` allowlist in `packages/db/src/client.ts`.
+- **`link-page-assets` Supabase Storage bucket** — must exist with RLS policy allowing org members to upload. If not created yet, run: `INSERT INTO storage.buckets (id, name, public) VALUES ('link-page-assets', 'link-page-assets', true);` in Supabase SQL editor.
+- **Subscriber email uniqueness** is per `linkPageId`, not global. Same email can subscribe to different link pages across different orgs.
+
+---
+
+## Hotfix 1 — Soft-Delete Middleware Injecting deletedAt on Subscriber
+
+**Date & Time (IST):** 2026-05-29 17:11 IST
+**Status:** Completed
+
+### What We Built
+
+Hotfix for `PrismaClientValidationError` crashing `/dashboard/link-in-bio`. Middleware in `packages/db/src/client.ts` was injecting `deletedAt: null` on all Prisma read operations regardless of whether the model has that field. `Subscriber` (and `InstagramMetric`, `InstagramPost`, `LinkClick`, `AuditLog`) have no `deletedAt` column.
+
+### How We Built It
+
+Replaced the unconditional `params.args.where.deletedAt = null` injection with an explicit `SOFT_DELETE_MODELS` Set allowlist. Only models in the set get the filter applied. All models with `deletedAt` in schema are in the set; models without it are excluded.
+
+### In Scope
+
+- `packages/db/src/client.ts` — `SOFT_DELETE_MODELS` allowlist, conditional inject
+
+### Breaking Changes
+
+- NONE — all models that previously had `deletedAt` filtering still have it; excluded models never had it (they would have errored before this fix)
+
+### Notes for Future Sessions
+
+- **When adding a new model:** If it has `deletedAt`, add it to `SOFT_DELETE_MODELS` in `client.ts`. If it does not, do nothing — middleware will skip it automatically.

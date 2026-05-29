@@ -128,34 +128,32 @@ model SocialAccount {
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
-  org              Organization      @relation(fields: [orgId], references: [id])
-  instagramAccount InstagramAccount?
+  org Organization @relation(fields: [orgId], references: [id])
 
   @@unique([orgId, platform])
   @@index([orgId])
 }
 
 model InstagramAccount {
-  id              String    @id
-  orgId           String
-  socialAccountId String    @unique
-  igUserId        String    @unique
-  handle          String
-  name            String?
-  profilePicUrl   String?
-  followersCount  Int       @default(0)
-  accessToken     String
-  tokenExpiresAt  DateTime?
-  lastSyncedAt    DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  deletedAt       DateTime?
+  id               String    @id
+  orgId            String
+  igUserId         String
+  igUsername       String
+  igName           String?
+  igProfilePicUrl  String?
+  igAccountType    String?
+  igFollowersCount Int?
+  accessTokenEnc   String
+  tokenExpiresAt   DateTime
+  connectedAt      DateTime  @default(now())
+  lastSyncAt       DateTime?
+  deletedAt        DateTime?
 
-  org           Organization      @relation(fields: [orgId], references: [id])
-  socialAccount SocialAccount     @relation(fields: [socialAccountId], references: [id])
-  metrics       InstagramMetric[]
-  posts         InstagramPost[]
+  org     Organization      @relation(fields: [orgId], references: [id])
+  metrics InstagramMetric[]
+  posts   InstagramPost[]
 
+  @@unique([orgId, igUserId])
   @@index([orgId])
 }
 

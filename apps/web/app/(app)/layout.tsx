@@ -15,7 +15,7 @@ export default async function AppLayout({
 
   if (!user) redirect("/login");
 
-  const dbUser = await db.user.findUnique({ where: { email: user.email! } });
+  const dbUser = await db.user.findUnique({ where: { authId: user.id } });
 
   const displayName = dbUser
     ? getDisplayName({ ...dbUser, email: user.email! })

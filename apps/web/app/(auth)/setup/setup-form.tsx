@@ -2,40 +2,22 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
-import { Eye, EyeOff } from "lucide-react";
-import { createUserRecords } from "./actions";
+import { createUserRecords } from "@/app/(auth)/register/actions";
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
 );
 
-function passwordStrength(pw: string): {
-  score: number;
-  label: string;
-  color: string;
-} {
-  if (pw.length < 8) return { score: 0, label: "Too short", color: "#EF4444" };
-  let s = 0;
-  if (/[a-z]/.test(pw)) s++;
-  if (/[A-Z]/.test(pw)) s++;
-  if (/[0-9]/.test(pw)) s++;
-  if (/[^a-zA-Z0-9]/.test(pw)) s++;
-  if (s === 1) return { score: 1, label: "Weak", color: "#EF4444" };
-  if (s === 2) return { score: 2, label: "Fair", color: "#F59E0B" };
-  if (s === 3) return { score: 3, label: "Good", color: "#3B82F6" };
-  return { score: 4, label: "Strong", color: "#10B981" };
+interface SetupFormProps {
+  email: string;
 }
 
-export default function RegisterPage() {
+export function SetupForm({ email }: SetupFormProps) {
   const router = useRouter();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
   const [orgName, setOrgName] = useState("");
   const [username, setUsername] = useState("");
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
@@ -46,7 +28,6 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pwStrength = password ? passwordStrength(password) : null;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
 
   function onUsernameChange(val: string) {
@@ -66,45 +47,34 @@ export default function RegisterPage() {
     }, 400);
   }
 
-  async function handleGoogle() {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!usernameAvailable) return;
     setError("");
     setLoading(true);
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    if (signUpError) {
-      setError(signUpError.message);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setError("Session expired. Please sign in again.");
       setLoading(false);
       return;
     }
 
-    if (data.user) {
-      try {
-        await createUserRecords({
-          authUserId: data.user.id,
-          email,
-          firstName,
-          lastName,
-          orgName,
-          username,
-        });
-      } catch {
-        // Idempotent — safe to ignore duplicate
-      }
+    try {
+      await createUserRecords({
+        authUserId: user.id,
+        email: user.email ?? email,
+        firstName,
+        lastName,
+        orgName,
+        username,
+      });
       router.push("/dashboard");
-    } else {
-      setError("Check your email to confirm your account.");
+    } catch {
+      setError("Something went wrong. Please try again.");
       setLoading(false);
     }
   }
@@ -135,52 +105,20 @@ export default function RegisterPage() {
           </svg>
         </div>
         <h1 className="text-xl font-semibold text-white">
-          Create your account
+          Set up your workspace
         </h1>
         <p className="mt-1 text-sm text-white/50">
-          Set up your workspace in seconds.
+          Just a few details to get you started.
         </p>
       </div>
 
-      {/* Google */}
-      <button
-        onClick={handleGoogle}
-        className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/5"
+      {/* Read-only email */}
+      <p
+        className="mb-5 text-center text-xs"
+        style={{ color: "rgba(160,160,176,0.5)" }}
       >
-        <svg width="18" height="18" viewBox="0 0 18 18">
-          <path
-            d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"
-            fill="#4285F4"
-          />
-          <path
-            d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2.01c-.72.48-1.63.77-2.7.77-2.08 0-3.84-1.41-4.47-3.29H1.85v2.07A8 8 0 0 0 8.98 17z"
-            fill="#34A853"
-          />
-          <path
-            d="M4.51 10.53c-.16-.48-.25-.99-.25-1.53s.09-1.05.25-1.53V5.4H1.85a8 8 0 0 0 0 7.2l2.66-2.07z"
-            fill="#FBBC05"
-          />
-          <path
-            d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.85 5.4L4.51 7.47c.63-1.88 2.39-3.29 4.47-3.29z"
-            fill="#EA4335"
-          />
-        </svg>
-        Continue with Google
-      </button>
-
-      <div className="relative mb-4">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-white/10" />
-        </div>
-        <div className="relative flex justify-center">
-          <span
-            className="px-2 text-xs text-white/30"
-            style={{ backgroundColor: "#15161E" }}
-          >
-            or
-          </span>
-        </div>
-      </div>
+        Setting up workspace for <span className="text-white/60">{email}</span>
+      </p>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         {/* First + Last name */}
@@ -207,65 +145,6 @@ export default function RegisterPage() {
               className={inputCls}
             />
           </div>
-        </div>
-
-        {/* Email */}
-        <div>
-          <label className={labelCls}>Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            placeholder="you@example.com"
-            className={inputCls}
-          />
-        </div>
-
-        {/* Password */}
-        <div>
-          <label className={labelCls}>Password</label>
-          <div className="relative">
-            <input
-              type={showPw ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              placeholder="••••••••"
-              className={`${inputCls} pr-10`}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPw((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"
-              aria-label={showPw ? "Hide password" : "Show password"}
-            >
-              {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
-            </button>
-          </div>
-          {/* Strength bar */}
-          {password && pwStrength && (
-            <div className="mt-1.5">
-              <div className="flex gap-1">
-                {[1, 2, 3, 4].map((seg) => (
-                  <div
-                    key={seg}
-                    className="h-1 flex-1 rounded-full transition-colors duration-200"
-                    style={{
-                      backgroundColor:
-                        seg <= pwStrength.score
-                          ? pwStrength.color
-                          : "rgba(255,255,255,0.1)",
-                    }}
-                  />
-                ))}
-              </div>
-              <p className="mt-0.5 text-xs" style={{ color: pwStrength.color }}>
-                {pwStrength.label}
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Org name */}
@@ -327,16 +206,9 @@ export default function RegisterPage() {
           className="w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-black transition disabled:opacity-50"
           style={{ backgroundColor: "#00D97E" }}
         >
-          {loading ? "Creating account…" : "Create account"}
+          {loading ? "Setting up…" : "Get started"}
         </button>
       </form>
-
-      <p className="mt-6 text-center text-xs text-white/40">
-        Already have an account?{" "}
-        <Link href="/login" className="text-white/60 hover:text-white/90">
-          Sign in
-        </Link>
-      </p>
     </div>
   );
 }

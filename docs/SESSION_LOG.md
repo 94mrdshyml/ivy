@@ -564,3 +564,86 @@ Full Link in Bio feature: public profile page at `/{username}`, a two-column das
 - **Preview iframe CORS:** The preview iframe at `/dashboard/link-in-bio` loads the public page in an iframe. Works fine for same-origin. If the public page is ever moved to a different domain, the iframe will need `X-Frame-Options` changes.
 - **Supabase avatars bucket** still needs to be created manually in Supabase Storage with public access. Both the profile photo and the link page avatar upload use this bucket.
 - **`@dnd-kit/utilities` CSS import:** The `CSS.Transform.toString()` utility is used in the drag-and-drop sortable rows. This works without additional CSS imports since it only transforms values into CSS strings.
+
+---
+
+## Session 4 — Auth Flow Rebuild (authId + Full Registration)
+
+**Date & Time (IST):** 2026-05-29 20:00 IST
+**Status:** Completed
+
+### What We Built
+
+Complete rebuild of the registration and authentication flow. Email registration now collects all required data upfront (firstName, lastName, email, password, orgName, username) in one form with live username availability checking and password strength bar. Google OAuth now routes new users to a `/setup` page to complete workspace creation. `User.authId` is populated on every registration, and all DB lookups now use `authId` instead of email.
+
+### How We Built It
+
+**Prisma schema:** Added `authId String? @unique` to `User` model. Made nullable to allow safe migration on existing data. Applied via manual migration `20260529090000_fix_user_auth_id` (created migration SQL by hand and used `prisma migrate deploy` because `prisma migrate dev` requires a TTY which the shell tool doesn't provide).
+
+**`createUserRecords` server action:** Rewritten to accept `{ authUserId, email, firstName, lastName, orgName, username }`. Idempotent lookup by `authId`. Creates User, Organization, Membership atomically via `db.$transaction`. Org `slug` sanitized from username. Added `checkUsernameAvailable` server action (thin wrapper over org slug lookup, used by setup form).
+
+**Register page rebuild:** 5-field form — First name + Last name (side-by-side), Email, Password (with show/hide toggle + 4-segment strength bar), Workspace name, Username (debounced availability check at 400ms + live URL preview). Password strength bar scores: 1 char type = Weak (red), 2 = Fair (orange), 3 = Good (blue), 4 = Strong (green). Form blocks submit if username not confirmed available.
+
+**Auth callback:** Now checks `db.user.findUnique({ where: { authId } })` after session exchange. Routes existing users → `/dashboard`, new Google OAuth users → `/setup`.
+
+**Setup page:** Server component at `app/(auth)/setup/page.tsx` checks session + DB record. Redirects to `/dashboard` if record exists. Renders `SetupForm` client component with email passed as prop. Setup form collects firstName, lastName, orgName, username — calls `createUserRecords` with session data — redirects to `/dashboard`.
+
+**`getOrgContext` refactor:** Now takes `authId: string` (Supabase UUID), does `db.user.findUnique({ where: { authId } })`, returns `{ user, org, role }`. All API route `getAuthContext()` helpers simplified: no more email lookup, just `getOrgContext(user.id)` where `user.id` is the Supabase auth UUID.
+
+**All callers updated:** Every server component and API route that previously did `db.user.findUnique({ where: { email: user.email! } })` now uses `db.user.findUnique({ where: { authId: user.id } })`. Covers: layout, all 6 link-in-bio API routes, Instagram connect/disconnect routes, dashboard analytics, profile settings, connections settings, link-in-bio dashboard.
+
+**Middleware:** Replaced `/onboarding` protection with `/setup` protection. `/setup` requires auth; unauthenticated users are redirected to `/login`. The setup page server component also does its own redirect check.
+
+**Onboarding page:** Simplified to `redirect("/dashboard")`. Org/workspace setup now happens at registration.
+
+**RLS migration `004_fix_rls_auth_id.sql`:** Rebuilds `auth.user_org_ids()` to join through `User.authId` instead of the legacy lookup. Must be applied manually to Supabase (SQL editor or CLI).
+
+### In Scope
+
+- `packages/db/prisma/schema.prisma` — `authId String? @unique` on User
+- `packages/db/prisma/migrations/20260529090000_fix_user_auth_id/migration.sql`
+- `packages/db/src/context.ts` — `getOrgContext(authId)`, returns `{ user, org, role }`
+- `packages/db/supabase/migrations/004_fix_rls_auth_id.sql`
+- `apps/web/app/(auth)/register/actions.ts` — full rewrite with authId
+- `apps/web/app/(auth)/register/page.tsx` — full rebuild (5 fields, strength bar, availability check)
+- `apps/web/app/auth/callback/route.ts` — authId check → /dashboard or /setup
+- `apps/web/app/(auth)/setup/page.tsx` — new (server, protection check)
+- `apps/web/app/(auth)/setup/setup-form.tsx` — new (client form)
+- `apps/web/app/onboarding/page.tsx` — redirect to /dashboard
+- `apps/web/app/(app)/layout.tsx` — authId lookup
+- `apps/web/app/(app)/dashboard/analytics/instagram/page.tsx` — authId lookup
+- `apps/web/app/(app)/dashboard/settings/profile/page.tsx` — authId lookup
+- `apps/web/app/(app)/dashboard/settings/connections/page.tsx` — authId lookup
+- `apps/web/app/(app)/dashboard/link-in-bio/page.tsx` — authId lookup
+- `apps/web/app/api/link-page/route.ts` — simplified getAuthContext
+- `apps/web/app/api/links/route.ts` — simplified getAuthContext
+- `apps/web/app/api/links/reorder/route.ts` — simplified getAuthContext
+- `apps/web/app/api/links/[id]/route.ts` — simplified getAuthContext
+- `apps/web/app/api/social-profiles/route.ts` — simplified getAuthContext
+- `apps/web/app/api/social-profiles/[id]/route.ts` — simplified getAuthContext
+- `apps/web/app/api/instagram/connect/route.ts` — authId lookup
+- `apps/web/app/api/instagram/disconnect/route.ts` — authId lookup
+- `apps/web/middleware.ts` — /setup protected, /onboarding removed
+
+### Out of Scope
+
+- Backfilling `authId` for any existing users (step 9 in spec — manual data wipe in Supabase)
+- Login page changes (existing email/password + Google flow unchanged)
+- Forgot password / reset password pages (unchanged)
+- Profile settings save action (unchanged — still uses internal `userId` for update, which is correct)
+
+### Breaking Changes
+
+- `getOrgContext` now takes `authId` (Supabase UUID), not internal `userId`. Any code calling `getOrgContext(internalId)` will silently fail at runtime (returns no user). All known callers updated.
+- `getOrgContext` return type changed from `{ org, role, userId }` to `{ user, org, role }`. Any code destructuring `userId` from the result will get `undefined`. None found in codebase.
+- `User.authId` is now `@unique` — duplicate auth IDs (none expected) will fail at DB level.
+- `/onboarding` no longer serves the wizard — it redirects to `/dashboard`.
+
+### Notes for Future Sessions
+
+- **`prisma migrate dev` requires TTY:** Cannot be run in the non-interactive shell tool. Workaround: create migration SQL manually + use `prisma migrate deploy`. Add this to Known Gotchas in CLAUDE.md.
+- **`authId String?` (nullable):** The spec shows `authId String @unique` (non-null) but nullable was used to allow safe migration on existing data. After step 9 (wipe test data), can create another migration to add `NOT NULL` constraint if desired.
+- **004_fix_rls_auth_id.sql must be applied manually:** Like the previous RLS migrations, this is not a Prisma migration. Apply via Supabase SQL editor.
+- **Step 9 must be done manually:** Delete all users from Supabase Auth dashboard, then run `DELETE FROM "Membership"; DELETE FROM "Organization"; DELETE FROM "User";` in Supabase SQL editor. Re-register fresh to verify the new flow.
+- **Setup form imports from register/actions:** `setup-form.tsx` imports `createUserRecords` from `app/(auth)/register/actions`. If register/actions.ts is ever moved or renamed, update this import.
+- **`checkUsernameAvailable` server action added to register/actions.ts:** Both register page and setup form use `/api/check-handle` directly (via fetch). The server action version is exported but currently unused — reserved for future use where a server-side check is needed.

@@ -13,11 +13,7 @@ async function getAuthContext() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new UnauthorizedError();
-
-  const dbUser = await db.user.findUnique({ where: { email: user.email! } });
-  if (!dbUser) throw new UnauthorizedError();
-
-  return getOrgContext(dbUser.id);
+  return getOrgContext(user.id);
 }
 
 export async function PUT(

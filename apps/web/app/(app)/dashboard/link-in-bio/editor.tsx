@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 import { createBrowserClient } from "@supabase/ssr";
 import {
@@ -84,17 +84,19 @@ interface Props {
   appUrl: string;
 }
 
+interface SortableLinkRowProps {
+  link: Link;
+  onEdit: (link: Link) => void;
+  onDelete: (id: string) => void;
+  onToggle: (id: string, isActive: boolean) => void;
+}
+
 function SortableLinkRow({
   link,
   onEdit,
   onDelete,
   onToggle,
-}: {
-  link: Link;
-  onEdit: (link: Link) => void;
-  onDelete: (id: string) => void;
-  onToggle: (id: string, isActive: boolean) => void;
-}) {
+}: SortableLinkRowProps) {
   const {
     attributes,
     listeners,
@@ -180,7 +182,7 @@ export function LinkInBioEditor({
   linkClickMap,
   appUrl,
 }: Props) {
-  const [page, setPage] = useState(initialPage);
+  const page = initialPage;
   const [links, setLinks] = useState(initialPage.links);
   const [socialProfiles, setSocialProfiles] = useState(
     initialPage.socialProfiles,

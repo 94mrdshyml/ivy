@@ -11,6 +11,7 @@ export const ids = {
   inv: () => generateId("inv"),
   acc: () => generateId("acc"),
   aud: () => generateId("aud"),
+  iga: () => generateId("iga"),
   igacc: () => generateId("igacc"),
   igmet: () => generateId("igmet"),
   igpst: () => generateId("igpst"),

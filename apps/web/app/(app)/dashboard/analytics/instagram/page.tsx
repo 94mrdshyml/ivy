@@ -162,7 +162,9 @@ export default async function InstagramAnalyticsPage({
           <h2 className="text-xl font-semibold text-white">
             Instagram Analytics
           </h2>
-          <p className="mt-0.5 text-sm text-white/50">@{igAccount.handle}</p>
+          <p className="mt-0.5 text-sm text-white/50">
+            @{igAccount.igUsername}
+          </p>
         </div>
         <Suspense>
           <DateRangeSelector current={String(rangeDays)} />

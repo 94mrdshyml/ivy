@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Suspense } from "react";
 import { createSupabaseServerClient, db } from "@ivy/db";
 import {
   InstagramIcon,
@@ -7,31 +8,8 @@ import {
   YoutubeIcon,
 } from "@/components/social-icons";
 import { DisconnectButton } from "./disconnect-button";
+import { ConnectionsToast } from "./connections-toast";
 import { ExternalLink, Link as LinkIcon } from "lucide-react";
-
-const platforms = [
-  {
-    key: "INSTAGRAM" as const,
-    label: "Instagram",
-    icon: InstagramIcon,
-    color: "#E1306C",
-    connectHref: "/api/instagram/connect",
-  },
-  {
-    key: "FACEBOOK" as const,
-    label: "Facebook",
-    icon: FacebookIcon,
-    color: "#1877F2",
-    connectHref: null,
-  },
-  {
-    key: "YOUTUBE" as const,
-    label: "YouTube",
-    icon: YoutubeIcon,
-    color: "#FF0000",
-    connectHref: null,
-  },
-];
 
 export default async function ConnectionsPage() {
   const supabase = await createSupabaseServerClient();
@@ -42,13 +20,11 @@ export default async function ConnectionsPage() {
 
   const dbUser = await db.user.findUnique({ where: { authId: user.id } });
 
-  const accounts = dbUser
-    ? await db.socialAccount.findMany({
+  const instagramAccount = dbUser
+    ? await db.instagramAccount.findFirst({
         where: { org: { members: { some: { userId: dbUser.id } } } },
       })
-    : [];
-
-  const connected = new Set(accounts.map((a) => a.platform));
+    : null;
 
   const linkPage = dbUser
     ? await db.linkPage.findFirst({
@@ -60,86 +36,142 @@ export default async function ConnectionsPage() {
 
   return (
     <div className="max-w-lg">
-      <h2 className="mb-1 text-xl font-semibold text-white">Connections</h2>
-      <p className="mb-8 text-sm text-white/50">
-        Connect your social accounts to unlock analytics
+      <Suspense>
+        <ConnectionsToast />
+      </Suspense>
+
+      <h2 className="mb-1 text-xl font-semibold text-text-primary">
+        Connections
+      </h2>
+      <p className="mb-8 text-sm text-text-secondary">
+        Connect your social accounts to start pulling analytics.
       </p>
 
       <div className="space-y-3">
-        {platforms.map(({ key, label, icon: Icon, color, connectHref }) => {
-          const isConnected = connected.has(key);
-          return (
-            <div
-              key={key}
-              className="flex items-center justify-between rounded-xl border border-white/10 px-5 py-4"
-              style={{ backgroundColor: "#15161E" }}
-            >
+        {/* Instagram */}
+        <div
+          className="rounded-ds-lg border border-border-default px-5 py-4"
+          style={{ backgroundColor: "#15161E" }}
+        >
+          {instagramAccount ? (
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Icon size={20} color={color} />
+                {instagramAccount.igProfilePicUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={instagramAccount.igProfilePicUrl}
+                    alt={instagramAccount.igUsername}
+                    className="h-9 w-9 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-3">
+                    <InstagramIcon size={18} color="#E1306C" />
+                  </div>
+                )}
                 <div>
-                  <p className="text-sm font-medium text-white">{label}</p>
-                  <p
-                    className="text-xs"
-                    style={{
-                      color: isConnected ? "#00D97E" : "rgba(255,255,255,0.35)",
-                    }}
-                  >
-                    {isConnected ? "Connected" : "Not connected"}
+                  <p className="text-sm font-medium text-text-primary">
+                    @{instagramAccount.igUsername}
                   </p>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <span className="text-xs text-text-secondary">
+                      {instagramAccount.igFollowersCount != null
+                        ? `${instagramAccount.igFollowersCount.toLocaleString()} followers`
+                        : "Instagram"}
+                    </span>
+                    {instagramAccount.igAccountType && (
+                      <span className="rounded-ds-sm bg-ivy-dim px-1.5 py-0.5 text-[10px] font-medium text-ivy">
+                        {instagramAccount.igAccountType}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-
-              {isConnected ? (
-                <DisconnectButton platform={label} />
-              ) : connectHref ? (
-                <Link
-                  href={connectHref}
-                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:bg-white/5"
-                >
-                  Connect
-                </Link>
-              ) : (
-                <button
-                  disabled
-                  className="cursor-not-allowed rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-white/30"
-                >
-                  Coming soon
-                </button>
-              )}
+              <DisconnectButton platform="Instagram" />
             </div>
-          );
-        })}
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <InstagramIcon size={20} color="#E1306C" />
+                <div>
+                  <p className="text-sm font-medium text-text-primary">
+                    Instagram
+                  </p>
+                  <p className="text-xs text-text-muted">Not connected</p>
+                </div>
+              </div>
+              <Link
+                href="/api/instagram/connect"
+                className="rounded-ds-md border border-border-default px-3 py-1.5 text-xs font-medium text-text-secondary transition hover:bg-surface-3"
+              >
+                Connect
+              </Link>
+            </div>
+          )}
+        </div>
 
-        {/* Link in Bio row */}
+        {/* Facebook */}
         <div
-          className="flex items-center justify-between rounded-xl border border-white/10 px-5 py-4"
+          className="flex items-center justify-between rounded-ds-lg border border-border-default px-5 py-4"
+          style={{ backgroundColor: "#15161E" }}
+        >
+          <div className="flex items-center gap-3">
+            <FacebookIcon size={20} color="#1877F2" />
+            <div>
+              <p className="text-sm font-medium text-text-primary">Facebook</p>
+              <p className="text-xs text-text-muted">Not connected</p>
+            </div>
+          </div>
+          <button
+            disabled
+            className="cursor-not-allowed rounded-ds-md border border-border-default px-3 py-1.5 text-xs font-medium text-text-disabled"
+          >
+            Coming soon
+          </button>
+        </div>
+
+        {/* YouTube */}
+        <div
+          className="flex items-center justify-between rounded-ds-lg border border-border-default px-5 py-4"
+          style={{ backgroundColor: "#15161E" }}
+        >
+          <div className="flex items-center gap-3">
+            <YoutubeIcon size={20} color="#FF0000" />
+            <div>
+              <p className="text-sm font-medium text-text-primary">YouTube</p>
+              <p className="text-xs text-text-muted">Not connected</p>
+            </div>
+          </div>
+          <button
+            disabled
+            className="cursor-not-allowed rounded-ds-md border border-border-default px-3 py-1.5 text-xs font-medium text-text-disabled"
+          >
+            Coming soon
+          </button>
+        </div>
+
+        {/* Link in Bio */}
+        <div
+          className="flex items-center justify-between rounded-ds-lg border border-border-default px-5 py-4"
           style={{ backgroundColor: "#15161E" }}
         >
           <div className="flex items-center gap-3">
             <LinkIcon size={20} color="#00D97E" />
             <div>
-              <p className="text-sm font-medium text-white">Link in Bio</p>
+              <p className="text-sm font-medium text-text-primary">
+                Link in Bio
+              </p>
               {linkPage ? (
-                <p
-                  className="text-xs"
-                  style={{ color: "rgba(255,255,255,0.35)" }}
-                >
+                <p className="text-xs text-text-muted">
                   {appUrl}/{linkPage.username}
                 </p>
               ) : (
-                <p
-                  className="text-xs"
-                  style={{ color: "rgba(255,255,255,0.35)" }}
-                >
-                  Not set up yet
-                </p>
+                <p className="text-xs text-text-muted">Not set up yet</p>
               )}
             </div>
           </div>
-
           <Link
             href="/dashboard/link-in-bio"
-            className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:bg-white/5"
+            className="flex items-center gap-1.5 rounded-ds-md border border-border-default px-3 py-1.5 text-xs font-medium text-text-secondary transition hover:bg-surface-3"
           >
             <ExternalLink size={12} /> Manage
           </Link>

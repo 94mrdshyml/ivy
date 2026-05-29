@@ -7,4 +7,5 @@ export {
   getSupabaseAdmin,
   createSupabaseServerClient,
 } from "./supabase";
+export { encrypt, decrypt } from "./encryption";
 export * from "@prisma/client";

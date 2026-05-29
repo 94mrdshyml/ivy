@@ -1,6 +1,6 @@
 import { serve } from "inngest/next";
 import { Inngest } from "inngest";
-import { db, ids } from "@ivy/db";
+import { db, ids, decrypt } from "@ivy/db";
 
 const inngest = new Inngest({ id: "ivy" });
 
@@ -105,12 +105,10 @@ async function syncAccount(account: {
   id: string;
   orgId: string;
   igUserId: string;
-  accessToken: string;
+  accessTokenEnc: string;
 }) {
-  const insights = await fetchAccountInsights(
-    account.igUserId,
-    account.accessToken,
-  );
+  const accessToken = decrypt(account.accessTokenEnc);
+  const insights = await fetchAccountInsights(account.igUserId, accessToken);
 
   const dateMap = new Map<string, Record<string, number>>();
   for (const metric of insights) {
@@ -144,11 +142,11 @@ async function syncAccount(account: {
     }
   }
 
-  const media = await fetchMedia(account.igUserId, account.accessToken);
+  const media = await fetchMedia(account.igUserId, accessToken);
   for (const item of media) {
     const postInsights = await fetchMediaInsights(
       item.id,
-      account.accessToken,
+      accessToken,
       item.media_type,
     );
     const likes = item.like_count ?? 0;
@@ -191,7 +189,7 @@ async function syncAccount(account: {
 
   await db.instagramAccount.update({
     where: { id: account.id },
-    data: { lastSyncedAt: new Date() },
+    data: { lastSyncAt: new Date() },
   });
 }
 

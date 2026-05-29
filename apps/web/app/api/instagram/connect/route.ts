@@ -1,32 +1,20 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { createSupabaseServerClient, db } from "@ivy/db";
+import { createSupabaseServerClient } from "@ivy/db";
+import { getOAuthUrl } from "@/lib/meta";
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 
-const SCOPES = [
-  "instagram_basic",
-  "instagram_manage_insights",
-  "pages_show_list",
-  "pages_read_engagement",
-].join(",");
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(new URL("/login", request.url));
+  if (!user)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const dbUser = await db.user.findUnique({ where: { authId: user.id } });
-  const membership = dbUser
-    ? await db.membership.findFirst({ where: { userId: dbUser.id } })
-    : null;
-
-  if (!membership)
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-
+  const state = randomBytes(16).toString("hex");
   const cookieStore = await cookies();
-  cookieStore.set("ig_org_id", membership.orgId, {
+  cookieStore.set("ig_oauth_state", state, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -34,14 +22,5 @@ export async function GET(request: NextRequest) {
     path: "/",
   });
 
-  const params = new URLSearchParams({
-    client_id: process.env.META_APP_ID!,
-    redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/instagram/callback`,
-    scope: SCOPES,
-    response_type: "code",
-  });
-
-  return NextResponse.redirect(
-    `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`,
-  );
+  return NextResponse.redirect(getOAuthUrl(state));
 }

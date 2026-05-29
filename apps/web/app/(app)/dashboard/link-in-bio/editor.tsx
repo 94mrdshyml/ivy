@@ -280,9 +280,7 @@ export function LinkInBioEditor({
       setAvatarUrl(data.publicUrl);
       await savePageField({ avatarUrl: data.publicUrl });
     } else {
-      setAvatarError(
-        "Upload failed. Ensure the 'avatars' bucket exists in Supabase Storage with public access.",
-      );
+      setAvatarError(`Upload failed: ${error.message}`);
     }
     setUploadingAvatar(false);
   }

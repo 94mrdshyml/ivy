@@ -22,7 +22,7 @@
     "geist": "^1.7.1",
     "inngest": "^3.22.0",
     "lucide-react": "^1.16.0",
-    "next": "14.2.4",
+    "next": "16.2.6",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "recharts": "^3.8.1"

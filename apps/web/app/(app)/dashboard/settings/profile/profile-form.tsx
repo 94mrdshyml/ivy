@@ -2,11 +2,11 @@
 
 import { useState, useRef } from "react";
 import Image from "next/image";
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 import { saveProfile } from "./actions";
 import { Upload } from "lucide-react";
 
-const supabase = createClient(
+const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
 );

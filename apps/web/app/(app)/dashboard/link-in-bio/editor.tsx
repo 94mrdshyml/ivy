@@ -1001,7 +1001,7 @@ export function LinkInBioEditor({
         >
           <iframe
             key={previewKey}
-            src={publicUrl}
+            src={`/${page.username}`}
             className="h-full w-full"
             title="Public page preview"
           />

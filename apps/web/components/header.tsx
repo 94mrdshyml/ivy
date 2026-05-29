@@ -16,11 +16,10 @@ const titles: Record<string, string> = {
 };
 
 interface HeaderProps {
-  userName: string | null;
-  userEmail: string;
+  displayName: string;
 }
 
-export function Header({ userName, userEmail }: HeaderProps) {
+export function Header({ displayName }: HeaderProps) {
   const pathname = usePathname();
   const title = titles[pathname] ?? "Ivy";
 
@@ -31,7 +30,7 @@ export function Header({ userName, userEmail }: HeaderProps) {
     >
       <h1 className="text-sm font-semibold text-white">{title}</h1>
       <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-xs font-medium text-white">
-        {(userName ?? userEmail).charAt(0).toUpperCase()}
+        {displayName.charAt(0).toUpperCase()}
       </div>
     </header>
   );

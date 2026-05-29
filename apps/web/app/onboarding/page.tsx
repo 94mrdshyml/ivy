@@ -23,7 +23,8 @@ const platforms = [
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(1);
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [handle, setHandle] = useState("");
   const [handleAvailable, setHandleAvailable] = useState<boolean | null>(null);
   const [checkingHandle, setCheckingHandle] = useState(false);
@@ -59,7 +60,7 @@ export default function OnboardingPage() {
   async function handleFinish() {
     if (!platform || !userId) return;
     setSaving(true);
-    await completeOnboarding(userId, name, handle);
+    await completeOnboarding(userId, firstName, lastName, handle);
   }
 
   return (
@@ -101,17 +102,31 @@ export default function OnboardingPage() {
             </p>
 
             <div className="space-y-4">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-white/70">
-                  Full name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-[#00D97E] focus:ring-1 focus:ring-[#00D97E]"
-                  placeholder="Your name"
-                />
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="mb-1 block text-xs font-medium text-white/70">
+                    First name
+                  </label>
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-[#00D97E] focus:ring-1 focus:ring-[#00D97E]"
+                    placeholder="First"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="mb-1 block text-xs font-medium text-white/70">
+                    Last name
+                  </label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-[#00D97E] focus:ring-1 focus:ring-[#00D97E]"
+                    placeholder="Last"
+                  />
+                </div>
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-white/70">
@@ -146,7 +161,7 @@ export default function OnboardingPage() {
 
             <button
               onClick={() => setStep(2)}
-              disabled={!name || !handle || handleAvailable !== true}
+              disabled={!firstName || !handle || handleAvailable !== true}
               className="mt-6 w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-black transition disabled:opacity-40"
               style={{ backgroundColor: "#00D97E" }}
             >

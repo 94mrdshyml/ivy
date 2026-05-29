@@ -144,6 +144,34 @@ Use `gh run watch` or poll `gh run list --limit 1` to track GH Actions status. U
 
 ---
 
+### Vercel Deploy Watch Protocol
+
+After GH Actions production deploy completes successfully:
+
+1. Run `vercel ls ivy-idm --scope mridushyamal-barmans-projects` — check latest deployment shows `● Ready`, not `● Error`.
+2. If `● Error`, run `vercel inspect <deployment-url> --scope mridushyamal-barmans-projects --logs` and read the full build/runtime log.
+3. Fix the root cause. Do NOT push another guess — read all relevant code and logs first, understand completely, then fix once.
+4. Watch the new deploy cycle again from step 1.
+5. After `● Ready`, manually test the affected pages in a browser (or via `browse` skill) before reporting success.
+
+**Only report success once: GH Actions green AND Vercel `● Ready` AND the page loads without runtime errors in Vercel logs.**
+
+---
+
+## Known Gotchas
+
+Accumulates across sessions. Read this before touching related code.
+
+- **User model has `firstName` and `lastName` — never a single `name` field.** Always use `getDisplayName()` from `packages/db/src/utils.ts` when displaying a user's name anywhere in the UI. Call it in server components and pass the result as a `displayName: string` prop to client components — do NOT import `@ivy/db` in client components.
+- **`createBrowserClient` everywhere for client-side Supabase auth** — never `createClient` from `@supabase/supabase-js`. The SSR client writes to cookies; the plain client uses localStorage. Middleware reads cookies only.
+- **`@prisma/nextjs-monorepo-workaround-plugin` must stay in `next.config.mjs`** — removing it breaks Prisma engine resolution on Vercel due to `transpilePackages: ['@ivy/db']` bundling `@prisma/client`.
+- **lucide-react brand icons removed** — use `components/social-icons.tsx` for Instagram/Facebook/YouTube. Do not import from lucide-react.
+- **Prisma soft-delete middleware** — `db` client auto-injects `deletedAt: null` on all reads. Cannot query soft-deleted records via `db`. Use `supabaseAdmin` for admin operations needing deleted records.
+- **`DATABASE_URL` vs `DIRECT_URL`** — `DATABASE_URL` is transaction pooler (port 6543, `?pgbouncer=true`); `DIRECT_URL` is session pooler (port 5432, no pgbouncer). Both must be set in GH Secrets and Vercel env. `DIRECT_URL` mandatory for migrations.
+- **`[username]` catch-all route** — `app/[username]/page.tsx` catches all root-level paths not matched by explicit routes. Reserved paths (`api`, `dashboard`, `login`, `onboarding`, `auth`) are safe because explicit routes take priority in Next.js App Router. Validate usernames to exclude reserved slugs when implementing signup.
+
+---
+
 ## Session Logging Protocol
 
 After every session completes, Claude Code **must** append a new entry to `docs/SESSION_LOG.md` at the repo root. Create the file if it does not exist.

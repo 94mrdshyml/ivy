@@ -442,3 +442,125 @@ NONE — all fixes are backwards compatible.
 - **Prisma in monorepos:** `@prisma/nextjs-monorepo-workaround-plugin` must stay in `next.config.mjs`. If removed, the `rhel-openssl-3.0.x` engine error returns on Vercel. The underlying cause is `transpilePackages: ['@ivy/db']` bundling `@prisma/client` — this will remain until `@ivy/db` is compiled to JavaScript and removed from `transpilePackages`.
 - **GH Actions budget:** Repo is now public (unlimited free minutes). If repo is ever made private again, 2000 min/month limit reapplies — avoid CI loops.
 - **`next.config.mjs` has `outputFileTracingRoot`:** Set to monorepo root so Vercel's file tracer can find packages from `../../node_modules`. Do not remove this.
+
+---
+
+## Session 3 — Link in Bio MVP + User Name Migration
+
+**Date & Time (IST):** 2026-05-29 18:30 IST
+**Status:** Completed
+
+### What We Built
+
+Full Link in Bio feature: public profile page at `/{username}`, a two-column dashboard editor with drag-and-drop link management, social profile management, click analytics, and a live preview iframe. Also completed a database migration splitting `User.name` into `firstName` + `lastName`, and wired the full design system token set into `globals.css` and `tailwind.config.ts`.
+
+### How We Built It
+
+**Design system tokens:** All DESIGN.md colour tokens, border radius, and shadow tokens added as CSS custom properties in `globals.css`. Tailwind config extended to expose them as utility classes (`bg-surface-1`, `text-ivy`, `rounded-ds-lg`, etc.). DESIGN.md Colour Tokens and Tailwind mapping sections updated to reflect real codebase state.
+
+**User name migration:** `User.name` dropped; `User.firstName` and `User.lastName` (both nullable) added. Migration: `20260529072720_rename_name_to_first_last_name`. `getDisplayName({ firstName, lastName, email })` utility created in `packages/db/src/utils.ts` and exported from `@ivy/db`. Called in all server components — result passed as `displayName: string` prop to client components (Sidebar, Header) to avoid importing server-side `@ivy/db` in client code. Onboarding step 1 and profile form split into two side-by-side fields. `exactOptionalPropertyTypes` requires `firstName: firstName || null` not `firstName: firstName || undefined` in Prisma updates.
+
+**New Prisma models (all applied in a single migration alongside the name rename):**
+
+- `SocialPlatform` enum: INSTAGRAM, TWITTER, YOUTUBE, TIKTOK, FACEBOOK, LINKEDIN, GITHUB, WEBSITE
+- `LinkPage`: one per org (`@@unique([orgId])`), username unique, soft-deletable, accentColor defaults to `#00D97E`
+- `Link`: belongs to LinkPage, sortable by position, soft-deletable, `LinkClick` relation
+- `LinkClick`: immutable (no `updatedAt`), stores country/device/referrer, triple-indexed
+- `SocialProfile`: per-platform URL for the public page, soft-deletable
+- `Organization` now has `linkPages LinkPage[]` relation
+- New ID prefixes: `lp`, `lnk`, `lclk`, `sp`
+- RLS file: `packages/db/supabase/migrations/003_link_in_bio_rls.sql` (must be run manually via Supabase SQL editor or CLI)
+
+**API routes (all protected via `getOrgContext`):**
+
+- `GET/PUT /api/link-page` — auto-creates LinkPage on first GET if none exists (uses org slug as default username)
+- `POST /api/links` — creates with max(position)+1
+- `PUT/DELETE /api/links/[id]` — updates or soft-deletes; uses `Prisma.LinkUpdateManyMutationInput` type for `exactOptionalPropertyTypes` compatibility
+- `PUT /api/links/reorder` — batch position update in `$transaction`
+- `POST/DELETE /api/social-profiles` and `PUT/DELETE /api/social-profiles/[id]`
+- `POST /api/links/[id]/click` — **public route (no auth)**; uses `keepalive: true` on the client side so request completes even after page navigates away; extracts country from `x-vercel-ip-country`, device from user-agent
+
+**Public page `app/[username]/`:** Separate layout with no sidebar/header. Server component fetches LinkPage with links and social profiles. Returns 404 if not found or `isPublished: false`. `generateStaticParams` pre-renders known published pages; `dynamicParams = true` + `revalidate = 3600` for new ones. Client component (`PublicPageClient`) uses Framer Motion with `useReducedMotion()` — animation props spread conditionally (`{...profileAnim}`) to satisfy `exactOptionalPropertyTypes` (passing `undefined` to `initial`/`animate` is a type error). Social icons served from `public/icons/social/` as SVG files, rendered with `filter: invert(1) opacity(0.5)` for consistent dark-mode muting.
+
+**`[username]` route collision:** `app/[username]/` is a catch-all for root-level paths. Explicit routes (`dashboard`, `login`, `api`, `onboarding`, `auth`) take priority in Next.js App Router, so no collision. Reserved slugs not yet validated at signup — noted in CLAUDE.md Known Gotchas.
+
+**Dashboard editor `app/(app)/dashboard/link-in-bio/`:** Page is a server component that fetches LinkPage + analytics (total clicks, 30-day count, daily chart data, per-link click counts using `groupBy`). Passes all as props to `LinkInBioEditor` client component. Editor features:
+
+- Publish toggle with immediate optimistic update
+- Public URL display with copy-to-clipboard + open-in-new-tab
+- Profile section: avatar upload to Supabase Storage, displayName, bio (160 char with live counter), accent colour picker (6 presets + native `<input type="color">`)
+- Social profiles: one input per platform, auto-saves on blur; creates/updates/deletes the DB row
+- Links: `@dnd-kit/core` + `@dnd-kit/sortable` drag-to-reorder; toggled with a pill switch; inline add form; edit and delete via modals
+- Analytics: stat cards, Recharts AreaChart for daily clicks (30d), per-link click count with progress bars
+- Live preview: `<iframe key={previewKey}>` refreshes by incrementing a key after every mutation
+- `xl:` breakpoint for two-column layout (preview visible only at 1280px+)
+
+**Connections page:** Added fourth "Link in Bio" row with Lucide `Link` icon, public URL display, and "Manage" button linking to the editor.
+
+**next.config.mjs:** Added `*.cdninstagram.com` and `*.fbcdn.net` to `images.remotePatterns` for Meta CDN thumbnails.
+
+**CLAUDE.md:** Added "Known Gotchas" section accumulating gotchas from sessions 2 and 3.
+
+### In Scope
+
+- `apps/web/app/globals.css` — full design token CSS vars
+- `apps/web/tailwind.config.ts` — full design token Tailwind mapping
+- `DESIGN.md` — colour tokens and Tailwind mapping sections updated
+- `packages/db/prisma/schema.prisma` — name→firstName/lastName, 4 new models, SocialPlatform enum
+- `packages/db/prisma/migrations/20260529072720_rename_name_to_first_last_name/` — single combined migration
+- `packages/db/supabase/migrations/003_link_in_bio_rls.sql`
+- `packages/db/src/utils.ts` — `getDisplayName`
+- `packages/db/src/ids.ts` — lp, lnk, lclk, sp prefixes
+- `packages/db/src/index.ts` — exports `getDisplayName`
+- `apps/web/app/(app)/layout.tsx` — uses `getDisplayName`, passes `displayName: string`
+- `apps/web/components/sidebar.tsx` — `displayName` prop
+- `apps/web/components/header.tsx` — `displayName` prop
+- `apps/web/app/onboarding/page.tsx` — firstName + lastName fields
+- `apps/web/app/onboarding/actions.ts` — saves firstName/lastName
+- `apps/web/app/(app)/dashboard/settings/profile/page.tsx` — passes firstName/lastName
+- `apps/web/app/(app)/dashboard/settings/profile/profile-form.tsx` — two name fields
+- `apps/web/app/(app)/dashboard/settings/profile/actions.ts` — saves firstName/lastName
+- `apps/web/app/(app)/dashboard/settings/connections/page.tsx` — Link in Bio row
+- `apps/web/app/api/link-page/route.ts`
+- `apps/web/app/api/links/route.ts`
+- `apps/web/app/api/links/reorder/route.ts`
+- `apps/web/app/api/links/[id]/route.ts`
+- `apps/web/app/api/links/[id]/click/route.ts`
+- `apps/web/app/api/social-profiles/route.ts`
+- `apps/web/app/api/social-profiles/[id]/route.ts`
+- `apps/web/app/[username]/layout.tsx`
+- `apps/web/app/[username]/page.tsx`
+- `apps/web/app/[username]/public-page-client.tsx`
+- `apps/web/app/(app)/dashboard/link-in-bio/page.tsx`
+- `apps/web/app/(app)/dashboard/link-in-bio/editor.tsx`
+- `apps/web/public/icons/social/` — 8 SVG brand icons
+- `apps/web/next.config.mjs` — Meta CDN remotePatterns
+- `apps/web/package.json` — framer-motion, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities
+- `CLAUDE.md` — Known Gotchas section
+
+### Out of Scope
+
+- Facebook and YouTube OAuth
+- Instagram token refresh cron
+- Inngest signing key configuration
+- Username reservation validation at signup (reserved slugs like `api`, `dashboard` not blocked)
+- Public page themes / custom backgrounds beyond accentColor tint
+- Link page analytics beyond clicks (no device/country breakdown UI)
+- Mobile editor layout (desktop-first per DESIGN.md spec for dashboard)
+
+### Breaking Changes
+
+- `User.name` is gone. Any raw SQL or external tooling querying `users."name"` will break. The Prisma client no longer has `user.name`.
+- `Sidebar` and `Header` props changed: `userName: string | null` → `displayName: string` (non-nullable). If any other place instantiates these components, it must update its props.
+- `getDisplayName` added to `@ivy/db` exports.
+
+### Notes for Future Sessions
+
+- **RLS for link-in-bio:** `003_link_in_bio_rls.sql` must be run manually against Supabase (SQL editor or `supabase db push`). It is NOT a Prisma migration. Without it, the Supabase client cannot read/write these tables if RLS is enforced.
+- **Reserved username validation:** Users can currently choose usernames like `api`, `dashboard`, `login`. These are safe (explicit routes win), but confusing. Add a reserved-slug blocklist to `app/api/check-handle/route.ts` and the onboarding handle validator.
+- **Framer Motion + `exactOptionalPropertyTypes`:** Never pass `undefined` directly to Framer Motion animation props (`initial`, `animate`, `variants`, `whileHover`, `whileTap`). Use conditional spread: `{...(reducedMotion ? {} : { variants: profileVariants, initial: "hidden" as const, animate: "visible" as const })}`.
+- **`[username]` as a dynamic route:** This catches everything at the root level not matched by an explicit route. Any new top-level page (e.g., `/pricing`) must be created as an explicit route — it will not accidentally serve the public page. But be aware that `/johndoe` works for public pages, and adding `/johndoe` as an explicit route would break that user's public page.
+- **LinkPage auto-create:** First visit to `/dashboard/link-in-bio` or first call to `GET /api/link-page` creates a `LinkPage` with the org's slug as username. If the org slug changes (profile settings → handle), the `LinkPage.username` is NOT updated automatically. Future session should sync them or decouple username from org slug.
+- **Preview iframe CORS:** The preview iframe at `/dashboard/link-in-bio` loads the public page in an iframe. Works fine for same-origin. If the public page is ever moved to a different domain, the iframe will need `X-Frame-Options` changes.
+- **Supabase avatars bucket** still needs to be created manually in Supabase Storage with public access. Both the profile photo and the link page avatar upload use this bucket.
+- **`@dnd-kit/utilities` CSS import:** The `CSS.Transform.toString()` utility is used in the drag-and-drop sortable rows. This works without additional CSS imports since it only transforms values into CSS strings.

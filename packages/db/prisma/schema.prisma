@@ -35,12 +35,24 @@ enum Platform {
   YOUTUBE
 }
 
+enum SocialPlatform {
+  INSTAGRAM
+  TWITTER
+  YOUTUBE
+  TIKTOK
+  FACEBOOK
+  LINKEDIN
+  GITHUB
+  WEBSITE
+}
+
 // ─── Core Models ─────────────────────────────────────────
 
 model User {
   id        String    @id
   email     String    @unique
-  name      String?
+  firstName String?
+  lastName  String?
   avatarUrl String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -64,6 +76,7 @@ model Organization {
   invitations       Invitation[]
   socialAccounts    SocialAccount[]
   instagramAccounts InstagramAccount[]
+  linkPages         LinkPage[]
   auditLogs         AuditLog[]
 }
 
@@ -192,6 +205,83 @@ model InstagramPost {
   @@index([orgId])
   @@index([instagramAccountId])
 }
+
+// ─── Link in Bio ─────────────────────────────────────────
+
+model LinkPage {
+  id          String    @id
+  orgId       String    @unique
+  username    String    @unique
+  displayName String?
+  bio         String?
+  avatarUrl   String?
+  accentColor String?   @default("#00D97E")
+  isPublished Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  org            Organization    @relation(fields: [orgId], references: [id])
+  links          Link[]
+  socialProfiles SocialProfile[]
+
+  @@index([orgId])
+  @@index([username])
+}
+
+model Link {
+  id         String    @id
+  orgId      String
+  linkPageId String
+  title      String
+  url        String
+  position   Int
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  linkPage LinkPage    @relation(fields: [linkPageId], references: [id])
+  clicks   LinkClick[]
+
+  @@index([orgId])
+  @@index([linkPageId])
+}
+
+model LinkClick {
+  id        String   @id
+  orgId     String
+  linkId    String
+  country   String?
+  device    String?
+  referrer  String?
+  createdAt DateTime @default(now())
+
+  link Link @relation(fields: [linkId], references: [id])
+
+  @@index([orgId])
+  @@index([linkId])
+  @@index([createdAt])
+}
+
+model SocialProfile {
+  id         String         @id
+  orgId      String
+  linkPageId String
+  platform   SocialPlatform
+  url        String
+  position   Int
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  deletedAt  DateTime?
+
+  linkPage LinkPage @relation(fields: [linkPageId], references: [id])
+
+  @@index([orgId])
+  @@index([linkPageId])
+}
+
+// ─── Audit ───────────────────────────────────────────────
 
 model AuditLog {
   id           String   @id

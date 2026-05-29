@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient, db } from "@ivy/db";
+import { createSupabaseServerClient, db, getDisplayName } from "@ivy/db";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
 
@@ -17,10 +17,14 @@ export default async function AppLayout({
 
   const dbUser = await db.user.findUnique({ where: { email: user.email! } });
 
+  const displayName = dbUser
+    ? getDisplayName({ ...dbUser, email: user.email! })
+    : user.email!;
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#08090C" }}>
-      <Sidebar userName={dbUser?.name ?? null} userEmail={user.email!} />
-      <Header userName={dbUser?.name ?? null} userEmail={user.email!} />
+      <Sidebar displayName={displayName} userEmail={user.email!} />
+      <Header displayName={displayName} />
       <main className="ml-60 pt-14">
         <div className="p-6">{children}</div>
       </main>

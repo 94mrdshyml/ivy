@@ -36,11 +36,11 @@ const nav: NavItem[] = [
 ];
 
 interface SidebarProps {
-  userName: string | null;
+  displayName: string;
   userEmail: string;
 }
 
-export function Sidebar({ userName, userEmail }: SidebarProps) {
+export function Sidebar({ displayName, userEmail }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -99,11 +99,11 @@ export function Sidebar({ userName, userEmail }: SidebarProps) {
       <div className="border-t border-white/10 p-3">
         <div className="flex items-center gap-3 rounded-lg px-2 py-2">
           <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-medium text-white">
-            {(userName ?? userEmail).charAt(0).toUpperCase()}
+            {displayName.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-medium text-white">
-              {userName ?? userEmail}
+              {displayName}
             </p>
             <p className="truncate text-xs text-white/40">{userEmail}</p>
           </div>

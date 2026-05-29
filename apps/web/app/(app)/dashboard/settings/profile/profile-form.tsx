@@ -14,7 +14,8 @@ const supabase = createBrowserClient(
 interface ProfileFormProps {
   userId: string;
   orgId: string;
-  initialName: string;
+  initialFirstName: string;
+  initialLastName: string;
   initialSlug: string;
   avatarUrl: string | null;
 }
@@ -22,18 +23,23 @@ interface ProfileFormProps {
 export function ProfileForm({
   userId,
   orgId,
-  initialName,
+  initialFirstName,
+  initialLastName,
   initialSlug,
   avatarUrl,
 }: ProfileFormProps) {
-  const [name, setName] = useState(initialName);
+  const [firstName, setFirstName] = useState(initialFirstName);
+  const [lastName, setLastName] = useState(initialLastName);
   const [slug, setSlug] = useState(initialSlug);
   const [avatar, setAvatar] = useState(avatarUrl);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const dirty = name !== initialName || slug !== initialSlug;
+  const dirty =
+    firstName !== initialFirstName ||
+    lastName !== initialLastName ||
+    slug !== initialSlug;
 
   async function handleAvatarUpload(file: File) {
     setUploading(true);
@@ -52,7 +58,7 @@ export function ProfileForm({
   async function handleSave() {
     if (!dirty) return;
     setSaving(true);
-    await saveProfile(userId, orgId, name, slug);
+    await saveProfile(userId, orgId, firstName, lastName, slug);
     setSaving(false);
   }
 
@@ -98,18 +104,33 @@ export function ProfileForm({
         />
       </div>
 
-      {/* Fields */}
-      <div>
-        <label className="mb-1 block text-xs font-medium text-white/70">
-          Full name
-        </label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-[#00D97E] focus:ring-1 focus:ring-[#00D97E]"
-        />
+      {/* Name fields */}
+      <div className="flex gap-3">
+        <div className="flex-1">
+          <label className="mb-1 block text-xs font-medium text-white/70">
+            First name
+          </label>
+          <input
+            type="text"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-[#00D97E] focus:ring-1 focus:ring-[#00D97E]"
+          />
+        </div>
+        <div className="flex-1">
+          <label className="mb-1 block text-xs font-medium text-white/70">
+            Last name
+          </label>
+          <input
+            type="text"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-[#00D97E] focus:ring-1 focus:ring-[#00D97E]"
+          />
+        </div>
       </div>
+
+      {/* Handle */}
       <div>
         <label className="mb-1 block text-xs font-medium text-white/70">
           Handle

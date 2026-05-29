@@ -5,10 +5,14 @@ import { redirect } from "next/navigation";
 
 export async function completeOnboarding(
   userId: string,
-  name: string,
+  firstName: string,
+  lastName: string,
   handle: string,
 ) {
-  await db.user.update({ where: { id: userId }, data: { name } });
+  await db.user.update({
+    where: { id: userId },
+    data: { firstName: firstName || null, lastName: lastName || null },
+  });
 
   const membership = await db.membership.findFirst({ where: { userId } });
 

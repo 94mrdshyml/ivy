@@ -14,4 +14,8 @@ export const ids = {
   igacc: () => generateId("igacc"),
   igmet: () => generateId("igmet"),
   igpst: () => generateId("igpst"),
+  lp: () => generateId("lp"),
+  lnk: () => generateId("lnk"),
+  lclk: () => generateId("lclk"),
+  sp: () => generateId("sp"),
 };

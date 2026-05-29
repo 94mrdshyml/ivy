@@ -27,7 +27,8 @@ export default async function ProfilePage() {
       <ProfileForm
         userId={dbUser?.id ?? ""}
         orgId={membership?.orgId ?? ""}
-        initialName={dbUser?.name ?? ""}
+        initialFirstName={dbUser?.firstName ?? ""}
+        initialLastName={dbUser?.lastName ?? ""}
         initialSlug={membership?.org.slug ?? ""}
         avatarUrl={dbUser?.avatarUrl ?? null}
       />

@@ -18,4 +18,5 @@ export const ids = {
   lnk: () => generateId("lnk"),
   lclk: () => generateId("lclk"),
   sp: () => generateId("sp"),
+  sub: () => generateId("sub"),
 };

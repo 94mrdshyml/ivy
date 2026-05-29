@@ -29,7 +29,13 @@ import {
   Upload,
   BarChart3,
 } from "lucide-react";
-import type { LinkPage, Link, SocialProfile, SocialPlatform } from "@ivy/db";
+import type {
+  LinkPage,
+  Link,
+  SocialProfile,
+  SocialPlatform,
+  Subscriber,
+} from "@ivy/db";
 import {
   AreaChart,
   Area,
@@ -81,6 +87,7 @@ interface Props {
   recentClicks: number;
   dailyData: { date: string; clicks: number }[];
   linkClickMap: Record<string, number>;
+  subscribers: Subscriber[];
   appUrl: string;
 }
 
@@ -180,6 +187,7 @@ export function LinkInBioEditor({
   recentClicks,
   dailyData,
   linkClickMap,
+  subscribers: initialSubscribers,
   appUrl,
 }: Props) {
   const page = initialPage;
@@ -187,6 +195,7 @@ export function LinkInBioEditor({
   const [socialProfiles, setSocialProfiles] = useState(
     initialPage.socialProfiles,
   );
+  const subscribers = initialSubscribers;
 
   // Profile fields
   const [displayName, setDisplayName] = useState(page.displayName ?? "");
@@ -195,8 +204,10 @@ export function LinkInBioEditor({
   const [theme, setTheme] = useState(page.theme ?? "dark");
   const [isPublished, setIsPublished] = useState(page.isPublished);
   const [avatarUrl, setAvatarUrl] = useState(page.avatarUrl ?? "");
+  const [coverImageUrl, setCoverImageUrl] = useState(page.coverImageUrl ?? "");
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [avatarError, setAvatarError] = useState("");
 
   // Social profile URLs (keyed by platform)
@@ -229,6 +240,7 @@ export function LinkInBioEditor({
   const [previewKey, setPreviewKey] = useState(0);
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const coverRef = useRef<HTMLInputElement>(null);
 
   const publicUrl = `${appUrl}/${page.username}`;
 
@@ -257,6 +269,7 @@ export function LinkInBioEditor({
       accentColor,
       theme,
       avatarUrl: avatarUrl || null,
+      coverImageUrl: coverImageUrl || null,
     });
     setSavingProfile(false);
   }
@@ -283,6 +296,21 @@ export function LinkInBioEditor({
       setAvatarError(`Upload failed: ${error.message}`);
     }
     setUploadingAvatar(false);
+  }
+
+  async function handleCoverUpload(file: File) {
+    setUploadingCover(true);
+    const ext = file.name.split(".").pop();
+    const path = `covers/linkpage-${page.id}.${ext}`;
+    const { error } = await supabase.storage
+      .from("avatars")
+      .upload(path, file, { upsert: true });
+    if (!error) {
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      setCoverImageUrl(data.publicUrl);
+      await savePageField({ coverImageUrl: data.publicUrl });
+    }
+    setUploadingCover(false);
   }
 
   async function handleSocialBlur(platform: SocialPlatform, url: string) {
@@ -478,6 +506,66 @@ export function LinkInBioEditor({
           }}
         >
           <h3 className="mb-4 text-sm font-semibold text-white">Profile</h3>
+
+          {/* Cover image */}
+          <div className="mb-4">
+            <label
+              className="mb-1 block text-xs font-medium"
+              style={{ color: "#A0A0B0" }}
+            >
+              Cover image
+            </label>
+            <div
+              className="relative cursor-pointer overflow-hidden rounded-ds-lg border transition hover:opacity-80"
+              style={{
+                height: 100,
+                borderColor: "rgba(255,255,255,0.07)",
+                backgroundColor: "var(--bg-surface-2)",
+              }}
+              onClick={() => coverRef.current?.click()}
+            >
+              {coverImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={coverImageUrl}
+                  alt="Cover"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div
+                  className="flex h-full items-center justify-center gap-2 text-xs"
+                  style={{ color: "#A0A0B0" }}
+                >
+                  <Upload size={14} />
+                  {uploadingCover
+                    ? "Uploading…"
+                    : "Click to upload cover (1440×400 recommended)"}
+                </div>
+              )}
+            </div>
+            {coverImageUrl && (
+              <button
+                onClick={() => {
+                  setCoverImageUrl("");
+                  savePageField({ coverImageUrl: null });
+                }}
+                className="mt-1 text-xs"
+                style={{ color: "#EF4444" }}
+              >
+                Remove cover
+              </button>
+            )}
+            <input
+              ref={coverRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleCoverUpload(f);
+              }}
+            />
+          </div>
 
           {/* Avatar */}
           <div className="mb-4 flex items-center gap-4">
@@ -980,6 +1068,103 @@ export function LinkInBioEditor({
                     </div>
                   );
                 })}
+            </div>
+          )}
+        </section>
+
+        {/* Subscribers */}
+        <section
+          className="rounded-ds-lg border p-6"
+          style={{
+            backgroundColor: "var(--bg-surface-1)",
+            borderColor: "rgba(255,255,255,0.07)",
+          }}
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span style={{ fontSize: 16 }}>🔔</span>
+              <h3 className="text-sm font-semibold text-white">Subscribers</h3>
+            </div>
+            <span
+              className="rounded-full px-2 py-0.5 text-xs font-semibold"
+              style={{
+                backgroundColor: "rgba(0,217,126,0.1)",
+                color: "#00D97E",
+              }}
+            >
+              {subscribers.length}
+            </span>
+          </div>
+
+          {subscribers.length === 0 ? (
+            <p
+              className="py-4 text-center text-sm"
+              style={{ color: "rgba(160,160,176,0.5)" }}
+            >
+              No subscribers yet. The bell icon on your public page lets
+              visitors subscribe.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr
+                    style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+                  >
+                    {[
+                      "ID",
+                      "First name",
+                      "Last name",
+                      "Email",
+                      "Subscribed",
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="pb-2 pr-4 font-medium"
+                        style={{ color: "#A0A0B0" }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {subscribers.map((s) => (
+                    <tr
+                      key={s.id}
+                      style={{
+                        borderBottom: "1px solid rgba(255,255,255,0.04)",
+                      }}
+                    >
+                      <td
+                        className="py-2 pr-4 font-mono"
+                        style={{ color: "rgba(160,160,176,0.6)", fontSize: 10 }}
+                      >
+                        {s.id}
+                      </td>
+                      <td className="py-2 pr-4 text-white">
+                        {s.firstName ?? "—"}
+                      </td>
+                      <td className="py-2 pr-4 text-white">
+                        {s.lastName ?? "—"}
+                      </td>
+                      <td className="py-2 pr-4" style={{ color: "#A0A0B0" }}>
+                        {s.email}
+                      </td>
+                      <td
+                        className="py-2 pr-4"
+                        style={{ color: "rgba(160,160,176,0.5)" }}
+                      >
+                        {new Date(s.createdAt).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </section>

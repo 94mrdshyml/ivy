@@ -34,7 +34,7 @@ export default async function InstagramAnalyticsPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await db.user.findUnique({ where: { email: user.email! } });
+  const dbUser = await db.user.findUnique({ where: { authId: user.id } });
   const membership = dbUser
     ? await db.membership.findFirst({ where: { userId: dbUser.id } })
     : null;

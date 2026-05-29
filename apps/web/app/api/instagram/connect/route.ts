@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.redirect(new URL("/login", request.url));
 
-  const dbUser = await db.user.findUnique({ where: { email: user.email! } });
+  const dbUser = await db.user.findUnique({ where: { authId: user.id } });
   const membership = dbUser
     ? await db.membership.findFirst({ where: { userId: dbUser.id } })
     : null;

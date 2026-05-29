@@ -1,5 +1,4 @@
 import { db } from "./client";
-import { Role } from "@prisma/client";
 
 export class UnauthorizedError extends Error {
   constructor() {
@@ -12,20 +11,19 @@ export class ForbiddenError extends Error {
   }
 }
 
-export async function getOrgContext(userId: string) {
-  if (!userId) throw new UnauthorizedError();
+export async function getOrgContext(authId: string) {
+  if (!authId) throw new UnauthorizedError();
+
+  const user = await db.user.findUnique({ where: { authId } });
+  if (!user) throw new UnauthorizedError();
 
   const membership = await db.membership.findFirst({
-    where: { userId, deletedAt: null },
+    where: { userId: user.id, deletedAt: null },
     include: { org: true },
     orderBy: { createdAt: "asc" },
   });
 
   if (!membership) throw new ForbiddenError();
 
-  return {
-    org: membership.org,
-    role: membership.role as Role,
-    userId,
-  };
+  return { user, org: membership.org, role: membership.role };
 }

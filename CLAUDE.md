@@ -69,6 +69,59 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ---
 
+## E2E Test Requirements
+
+Every feature session must include Playwright E2E tests covering the actual user
+journey of the feature built. Tests must be written in the same session — not deferred.
+
+### What must be tested
+
+- The primary happy path: user performs the main action of the feature end to end
+- Navigation: every new route stays on that route when visited by an authenticated user
+- Empty states: page renders correctly when no data exists
+- Auth protection: unauthenticated users are redirected to /login, not to dashboard
+
+### The navigation test — required for every new dashboard route
+
+Every new route added under /dashboard must have this test:
+
+```typescript
+test("stays on [route] when navigated to", async ({ page }) => {
+  await loginAsTestUser(page);
+  await page.goto("/dashboard/[route]");
+  await page.waitForTimeout(2000);
+  expect(page.url()).toContain("/dashboard/[route]");
+});
+```
+
+This catches middleware redirect loops and auth errors before they reach main.
+
+### CI gate
+
+E2E tests run on every PR to main. A PR with failing E2E tests must not be merged.
+If a test cannot be written because the feature requires external OAuth (Instagram etc),
+document exactly why in the PR description and add a manual verification checklist instead.
+
+## Hotfix Protocol
+
+Hotfixes use branch naming fix/short-description.
+Logged in SESSION_LOG.md as Hotfix X — not a session number.
+Hotfixes that affect auth, schema, or RLS must be merged to main
+before any in-progress feature session merges.
+
+## Definition of Done — Non-negotiable
+
+No session is complete until ALL of the following are true:
+
+- pnpm build passes with zero TypeScript errors
+- pnpm test passes (Vitest)
+- pnpm e2e passes (Playwright) — including the navigation test for every new route
+- Every new dashboard route stays on its URL for 2+ seconds when visited authenticated
+- No console errors in the browser on any new page
+- Tested manually in a real browser, not just in unit tests
+
+---
+
 ## Tech Stack
 
 - **Framework:** Next.js 14 App Router, TypeScript strict mode
@@ -155,6 +208,64 @@ After GH Actions production deploy completes successfully:
 5. After `● Ready`, manually test the affected pages in a browser (or via `browse` skill) before reporting success.
 
 **Only report success once: GH Actions green AND Vercel `● Ready` AND the page loads without runtime errors in Vercel logs.**
+
+---
+
+## E2E Test Requirements
+
+Every feature session must include Playwright E2E tests covering the actual user
+journey of the feature built. Tests must be written in the same session — not deferred.
+
+### What must be tested
+
+- The primary happy path: user performs the main action of the feature end to end
+- Navigation: every new route stays on that route when visited by an authenticated user
+- Empty states: page renders correctly when no data exists
+- Auth protection: unauthenticated users are redirected to /login, not to dashboard
+
+### The navigation test — required for every new dashboard route
+
+Every new route added under /dashboard must have this test:
+
+```typescript
+test("stays on [route] when navigated to", async ({ page }) => {
+  await loginAsTestUser(page);
+  await page.goto("/dashboard/[route]");
+  await page.waitForTimeout(2000);
+  expect(page.url()).toContain("/dashboard/[route]");
+});
+```
+
+This catches middleware redirect loops and auth errors before they reach main.
+
+### CI gate
+
+E2E tests run on every PR to main. A PR with failing E2E tests must not be merged.
+If a test cannot be written because the feature requires external OAuth (Instagram etc),
+document exactly why in the PR description and add a manual verification checklist instead.
+
+## Hotfix Protocol
+
+Hotfixes use branch naming fix/short-description.
+Logged in SESSION_LOG.md as Hotfix X — not a session number.
+Hotfixes that affect auth, schema, or RLS must be merged to main
+before any in-progress feature session merges.
+
+## Definition of Done — Non-negotiable
+
+No session is complete until ALL of the following are true:
+
+- pnpm build passes with zero TypeScript errors
+- pnpm test passes (Vitest)
+- pnpm e2e passes (Playwright) — including the navigation test for every new route
+- Every new dashboard route stays on its URL for 2+ seconds when visited authenticated
+- No console errors in the browser on any new page
+- Tested manually in a real browser, not just in unit tests
+
+Three things this adds that matter most:
+The navigation test template is the direct fix for what just happened. It's a two-line Playwright test that would have caught this bug in CI before it ever reached your browser.
+The CI gate makes E2E tests a hard blocker on merges, not an optional nicety. Right now they're running but probably not blocking anything.
+The Definition of Done replaces the soft checklist at the bottom of each session prompt with a non-negotiable gate. Claude Code cannot call a session complete until every item is checked — including manual browser verification. That last point matters because automated tests can pass while a real browser still shows a redirect loop.
 
 ---
 

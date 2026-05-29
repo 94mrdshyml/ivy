@@ -9,7 +9,7 @@ export async function POST() {
   if (!user)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const dbUser = await db.user.findUnique({ where: { email: user.email! } });
+  const dbUser = await db.user.findUnique({ where: { authId: user.id } });
   const membership = dbUser
     ? await db.membership.findFirst({ where: { userId: dbUser.id } })
     : null;

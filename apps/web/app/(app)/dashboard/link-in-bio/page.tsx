@@ -9,7 +9,7 @@ export default async function LinkInBioPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const dbUser = await db.user.findUnique({ where: { email: user.email! } });
+  const dbUser = await db.user.findUnique({ where: { authId: user.id } });
   if (!dbUser) redirect("/login");
 
   const membership = await db.membership.findFirst({
